@@ -1,0 +1,116 @@
+---
+title: Authentication
+description: How VoxMind API tokens work, and how to manage them for production use.
+---
+
+Every request to the VoxMind API must include a valid Bearer token in the `Authorization` header. This page explains the token lifecycle — from your first trial token through to production long-lived tokens — and how to manage them safely.
+
+## How authentication works
+
+VoxMind uses **long-lived Bearer tokens** for service-to-service authentication. This is intentional: when you're integrating voice biometrics into a contact centre platform or backend service, you don't want to deal with token refresh flows every hour. Your server gets a token, stores it securely, and uses it for every API call.
+
+```http
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+Every token is scoped to your **organisation**. A token cannot access another organisation's data, voiceprints, or settings.
+
+## Your first token (trial)
+
+When you sign up at [developers.voxmind.ai](https://developers.voxmind.ai), you're automatically issued a **trial token**. This token has a short lifespan — between 15 days and 3 months depending on your plan — and is restricted to sandbox usage. It's designed to let you build and test your integration before committing to a production deployment.
+
+<Warning>
+Trial tokens expire. Before you go to production, issue a long-lived token using the API Tokens endpoint and update your configuration. If your trial token expires while you're still building, simply generate a new one from your dashboard.
+</Warning>
+
+## Issuing a long-lived production token
+
+When you're ready for production, issue a dedicated token with an appropriate expiry or no expiry at all. Best practice is to give the token a meaningful `friendly_name` so you can identify it later.
+
+```bash
+curl -X POST https://api.voxmind.ai/organisations/{org_id}/api-tokens \
+  -H "Authorization: Bearer YOUR_CURRENT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "friendly_name": "production-server-01",
+    "enabled": true
+  }'
+```
+
+The response contains the full `bearer` token string — **this is the only time you will see the raw token value**. Store it immediately in a secrets manager (AWS Secrets Manager, HashiCorp Vault, or at minimum an environment variable in your deployment configuration). VoxMind only stores a hashed version and cannot retrieve it for you.
+
+```json
+{
+  "bearer": "eyJjbGllbnRfaWQiOiJZe...",
+  "token": {
+    "id": 1,
+    "friendly_name": "production-server-01",
+    "enabled": true,
+    "created_at": "2025-03-01T09:00:00Z"
+  }
+}
+```
+
+## Token expiry strategy
+
+By default, tokens issued without an `expires_at` field **do not expire**. This is convenient but creates risk if a token is ever exposed. VoxMind recommends a rotation strategy based on your security posture.
+
+For most integrations, rotating tokens every 90 days strikes the right balance. The rotation process is: issue a new token, update your deployment configuration, verify the new token works correctly, then delete the old one. There's no downtime because both tokens are valid simultaneously during the transition.
+
+```bash
+# Issue a token that expires in 90 days
+curl -X POST https://api.voxmind.ai/organisations/{org_id}/api-tokens \
+  -H "Authorization: Bearer YOUR_CURRENT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "friendly_name": "production-server-01-2025-q2",
+    "expires_at": "2025-06-01T00:00:00Z",
+    "enabled": true
+  }'
+```
+
+## Listing and managing your tokens
+
+You can view all active tokens for your organisation at any time. This is useful to audit what's in use, identify tokens that haven't been used recently, and confirm nothing unexpected is active.
+
+```bash
+curl -X GET https://api.voxmind.ai/organisations/{org_id}/api-tokens \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Accept: application/json"
+```
+
+To disable a token without deleting it (useful if you suspect a token may be compromised but want to keep the record):
+
+```bash
+curl -X PATCH https://api.voxmind.ai/organisations/{org_id}/api-tokens/{token_id} \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+```
+
+To permanently remove a token:
+
+```bash
+curl -X DELETE https://api.voxmind.ai/organisations/{org_id}/api-tokens/{token_id} \
+  -H "Authorization: Bearer YOUR_API_TOKEN"
+```
+
+## Security best practices
+
+Never hardcode tokens in source code or commit them to version control. Use environment variables in development and a secrets manager in production. If you're deploying to AWS (as VoxMind recommends), AWS Secrets Manager with automatic rotation hooks is the cleanest solution and costs pennies per secret per month.
+
+One token per service is a good discipline. If you're running multiple servers or microservices that call the VoxMind API, give each one its own token with a descriptive name. That way, if one service is compromised, you can revoke its token without affecting others.
+
+## Error responses
+
+If your token is invalid, expired, or disabled, you'll receive a `401 Unauthorized` response:
+
+```json
+{
+  "code": 401,
+  "message": "Invalid or expired authentication credentials"
+}
+```
+
+If your token is valid but you don't have permission to perform a specific action, you'll receive `403 Forbidden`. This typically means the resource doesn't belong to your organisation.

@@ -1,0 +1,204 @@
+---
+title: Quickstart
+description: Enroll a user and verify their voice in under 5 minutes.
+---
+
+This guide walks you through the three core actions — enrolling a user, verifying them, and understanding the response — using real API calls. By the end, you'll have a working voice authentication flow you can adapt for your application.
+
+<Info>
+**Before you begin:** You'll need an API token. If you don't have one yet, [sign up at developers.voxmind.ai](https://developers.voxmind.ai/signup) and your trial token will be emailed to you within a few seconds. The trial token is valid for your sandbox environment and doesn't require a credit card.
+</Info>
+
+## Step 1: Get your organisation ID
+
+Every resource in the VoxMind API is scoped to your **organisation**. Think of it as your tenant identifier — all your users, voiceprints, and settings live under it.
+
+After signup, your organisation ID is included in your welcome email. You can also retrieve it by calling:
+
+```bash
+curl -X GET https://api.voxmind.ai/organisations/{your_org_id} \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Accept: application/json"
+```
+
+Keep your `org_id` handy — you'll use it in every subsequent request.
+
+## Step 2: Enroll a user
+
+Enrollment creates a voiceprint for a user in your system. You send a voice recording as a binary blob alongside your user's identifier (`external_id` — this is your user's ID in your own database, so you control the format).
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.voxmind.ai/organisations/{org_id}/enrollments \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "voice_data": "<base64_encoded_audio>",
+    "request_uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "external_id": "user_12345",
+    "language": "en-UK"
+  }'
+```
+
+```python Python
+import requests
+import base64
+import uuid
+
+# Read and encode your audio file
+with open("enrollment_audio.wav", "rb") as f:
+    voice_data = base64.b64encode(f.read()).decode("utf-8")
+
+response = requests.post(
+    "https://api.voxmind.ai/organisations/{org_id}/enrollments",
+    headers={
+        "Authorization": "Bearer YOUR_API_TOKEN",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    },
+    json={
+        "voice_data": voice_data,
+        "request_uuid": str(uuid.uuid4()),  # unique ID for this request
+        "external_id": "user_12345",         # your user's ID
+        "language": "en-UK"
+    }
+)
+
+print(response.json())
+```
+
+```javascript Node.js
+const fs = require("fs");
+const { randomUUID } = require("crypto");
+
+const voiceData = fs.readFileSync("enrollment_audio.wav").toString("base64");
+
+const response = await fetch(
+  "https://api.voxmind.ai/organisations/{org_id}/enrollments",
+  {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer YOUR_API_TOKEN",
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      voice_data: voiceData,
+      request_uuid: randomUUID(),  // unique per request
+      external_id: "user_12345",
+      language: "en-UK",
+    }),
+  }
+);
+
+const data = await response.json();
+console.log(data);
+```
+
+</CodeGroup>
+
+**A successful enrollment returns HTTP 202**, meaning the request was accepted and is being processed asynchronously. The response looks like this:
+
+```json
+{
+  "callback_url": "https://voxmind.io/callback_url",
+  "message": "Your request has been accepted and is being processed"
+}
+```
+
+<Note>
+**Why async?** Voiceprint generation involves running audio through our ML pipeline. It typically completes in 1–3 seconds but we return immediately so your application doesn't block. VoxMind calls your webhook with the result when ready. See the [Webhooks guide](/guides/webhooks) for setup.
+</Note>
+
+### Audio requirements for enrollment
+
+For best results, the voice recording should be a WAV or MP3 file, at least 3 seconds long (5 seconds is ideal), recorded at a minimum of 16kHz sample rate. The user can say anything — VoxMind is text-independent. Background noise is handled by our preprocessing pipeline, but quieter environments produce more accurate voiceprints.
+
+## Step 3: Verify a user
+
+Once a user is enrolled, you can verify them at any time. The verification call is structurally identical to enrollment — you send a new voice recording with the same `external_id` that was used during enrollment. VoxMind finds their stored voiceprint and compares it.
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.voxmind.ai/organisations/{org_id}/verifications \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "voice_data": "<base64_encoded_audio>",
+    "request_uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "external_id": "user_12345",
+    "language": "en-UK"
+  }'
+```
+
+```python Python
+response = requests.post(
+    "https://api.voxmind.ai/organisations/{org_id}/verifications",
+    headers={
+        "Authorization": "Bearer YOUR_API_TOKEN",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    },
+    json={
+        "voice_data": voice_data,       # new recording from the auth attempt
+        "request_uuid": str(uuid.uuid4()),
+        "external_id": "user_12345",    # must match the enrollment external_id
+        "language": "en-UK"
+    }
+)
+```
+
+```javascript Node.js
+const response = await fetch(
+  "https://api.voxmind.ai/organisations/{org_id}/verifications",
+  {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer YOUR_API_TOKEN",
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      voice_data: voiceData,
+      request_uuid: randomUUID(),
+      external_id: "user_12345",  // same ID used at enrollment
+      language: "en-UK",
+    }),
+  }
+);
+```
+
+</CodeGroup>
+
+Like enrollment, verification returns HTTP 202 and delivers the result to your webhook. The verification result payload includes a **match score** (0.0–1.0) and a **deepfake flag** indicating whether the audio was detected as synthetic or replayed.
+
+## Step 4: Understand the result
+
+When VoxMind calls your webhook, the payload will contain three key pieces of information: whether the voice matched the enrolled voiceprint, the confidence score for that match, and whether the audio was flagged as a deepfake or replay attack.
+
+Your application logic should combine all three signals. A passing score alone isn't enough — you should reject any verification attempt where `deepfake_detected` is `true`, even if the voice score is technically above your threshold. An attacker using a high-quality voice clone might produce a reasonable match score, and the deepfake flag is your last line of defence.
+
+```json
+{
+  "request_uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "external_id": "user_12345",
+  "result": "verified",
+  "match_score": 0.94,
+  "deepfake_detected": false,
+  "latency_ms": 1247
+}
+```
+
+<Warning>
+Always check `deepfake_detected: false` before granting access, regardless of `match_score`. A result of `deepfake_detected: true` should be treated as a security event and logged accordingly.
+</Warning>
+
+## What's next?
+
+Now that you have a working enroll/verify flow, here's what to explore next.
+
+Move to the [Authentication guide](/getting-started/authentication) to understand how to manage API tokens properly for production, including how to issue long-lived tokens that don't expire. Then read the [Webhooks guide](/guides/webhooks) to set up your callback endpoint to receive async results. When you're ready to go live, switch from your trial token to a production long-lived token and point requests at the live environment as described in [Environments](/getting-started/environments).

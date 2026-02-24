@@ -1,0 +1,55 @@
+---
+title: Error Codes
+description: A complete reference for VoxMind API error responses and how to handle them.
+---
+
+VoxMind uses standard HTTP status codes and returns structured JSON error bodies so you can programmatically handle failure cases in your integration.
+
+## Error response format
+
+Every error response follows this structure:
+
+```json
+{
+  "code": 400,
+  "message": "Human-readable description of what went wrong",
+  "errors": [
+    {
+      "field": "voice_data",
+      "message": "This field is required"
+    }
+  ]
+}
+```
+
+The top-level `code` mirrors the HTTP status. The `errors` array is present on validation errors (400) and contains field-level detail about what failed, which is useful for building error messaging in your UI.
+
+## HTTP status codes
+
+**200 OK** — The request completed successfully. Used for GET and PATCH responses.
+
+**201 Created** — A resource was successfully created. Used when issuing a new API token.
+
+**202 Accepted** — Your enrollment or verification request was accepted and is being processed. This is not a success or failure — the actual result will arrive at your webhook endpoint. You should store the `request_uuid` from your request body to match it when the webhook arrives.
+
+**400 Bad Request** — The request failed validation. This usually means a required field is missing, a field value is in the wrong format, or a filter query contains a syntax error. The `errors` array in the response body will identify which field failed and why.
+
+**401 Unauthorized** — Your API token is invalid, expired, or disabled. Check that you're including the correct `Authorization: Bearer YOUR_TOKEN` header and that the token hasn't been revoked in your dashboard.
+
+**403 Forbidden** — Your token is valid but you don't have permission to perform this operation. This typically means you're attempting to access a resource (user, voiceprint, settings) that belongs to a different organisation. Double-check your `org_id` path parameter.
+
+**404 Not Found** — The requested resource doesn't exist. This could mean the `external_id` hasn't been enrolled yet, a token ID doesn't exist, or a user record has been deleted. Make sure your IDs are correct and that the resource exists in the environment your token is scoped to (sandbox vs. production).
+
+**409 Conflict** — A uniqueness constraint was violated. The most common case is attempting to create a predefined text with a language and text_code combination that already exists. Update the existing resource instead of creating a new one.
+
+**503 Service Unavailable** — The VoxMind API is temporarily unavailable. Check [status.voxmind.ai](https://status.voxmind.ai) for real-time status. Implement exponential backoff with retry logic for 503 responses in production-critical flows.
+
+## Common failure patterns and fixes
+
+**"Invalid or expired authentication credentials" on every request** — Your token has expired or been disabled. Issue a new token from your dashboard or via the API if you still have a valid token to authenticate with.
+
+**202 returned but webhook never fires** — First check that your callback URL is correctly configured in your organisation settings. Then check that your webhook endpoint is publicly accessible (not behind a VPN), returns 200, and is not timing out before responding. Test it with a tool like ngrok and a manual POST to confirm it's reachable.
+
+**Match scores consistently low for a specific user** — The most common cause is poor enrollment audio. Have the user re-enroll in a quieter environment with a recording of at least 5 seconds. If the issue persists across multiple re-enrollments, check that the audio encoding matches (bit depth, sample rate) between enrollment and verification recordings.
+
+**`deepfake_detected: true` for real users** — This is rare but can occur with highly compressed audio or very low-bitrate recordings that create artefacts the deepfake model interprets as synthetic. Ensure your audio pipeline preserves at least 16kHz quality and hasn't applied aggressive compression codecs. If this is happening consistently for legitimate users, contact support with sample recordings.

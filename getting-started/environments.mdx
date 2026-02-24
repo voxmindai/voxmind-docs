@@ -1,0 +1,44 @@
+---
+title: Environments
+description: Understanding sandbox and production environments in VoxMind.
+---
+
+VoxMind provides two isolated environments so you can build and test your integration safely without affecting real user data or voiceprints.
+
+## Sandbox (test) environment
+
+Your trial token automatically operates in the **sandbox environment**. In sandbox mode, enrollments and verifications are processed through the same ML pipeline as production, so you get realistic accuracy scores and latency — but data is completely isolated from production and will not persist beyond your trial period.
+
+Use the sandbox to test your webhook handler, validate your audio encoding logic, and build confidence in the integration before going live. You won't be charged for sandbox API calls regardless of volume.
+
+```
+Base URL (sandbox):  https://api.voxmind.ai  (same URL, scoped by token type)
+Token prefix:        vm_test_...
+```
+
+## Production environment
+
+Production tokens are issued when you move to a paid plan. All data in production is persistent, encrypted at rest and in transit, and subject to your organisation's data residency settings. Verifications in production go through full SLA guarantees as defined in your subscription.
+
+```
+Base URL (production):  https://api.voxmind.ai
+Token prefix:           vm_live_...
+```
+
+<Info>
+The base URL is the same for both environments. VoxMind routes your request to the correct environment automatically based on your token type. This means switching from sandbox to production is as simple as swapping the token in your environment configuration — no URL changes required.
+</Info>
+
+## Keeping environments separate
+
+The most common integration mistake is enrolling users in sandbox and then attempting to verify them using a production token. Voiceprints created in sandbox are not accessible in production. Treat them as completely separate databases.
+
+A reliable pattern for managing this in your codebase is to store the API token as a single environment variable (`VOXMIND_API_TOKEN`) and load the appropriate token per deployment environment. Your production deployment gets a `vm_live_` token, your staging deployment gets a `vm_test_` token, and your code never needs to know which environment it's in.
+
+```bash
+# .env.production
+VOXMIND_API_TOKEN=vm_live_eyJjbGllbnRfaWQi...
+
+# .env.staging
+VOXMIND_API_TOKEN=vm_test_eyJjbGllbnRfaWQi...
+```

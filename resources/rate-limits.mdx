@@ -1,0 +1,47 @@
+---
+title: Rate Limits
+description: API rate limits by plan and how to handle them gracefully.
+---
+
+VoxMind enforces rate limits to ensure consistent performance across all customers. Limits are applied per organisation and reset on a monthly basis aligned to your billing cycle.
+
+## Limits by plan
+
+| Plan | Monthly included calls | Requests per second | Concurrent requests |
+|---|---|---|---|
+| Free (sandbox) | 100 | 2 | 2 |
+| Starter | 2,500 | 10 | 5 |
+| Growth | 10,000 | 30 | 10 |
+| Scale | 50,000 | 100 | 25 |
+| Enterprise | Custom | Custom | Custom |
+
+"Calls" refers to enrollment and verification requests. API token management, user management, and organisation settings calls are not metered and not subject to monthly limits.
+
+## Rate limit headers
+
+Every API response includes headers telling you your current usage state:
+
+```
+X-RateLimit-Limit: 2500
+X-RateLimit-Remaining: 1847
+X-RateLimit-Reset: 1743465600
+```
+
+`X-RateLimit-Reset` is a Unix timestamp indicating when your monthly allowance resets. Monitor `X-RateLimit-Remaining` in your integration to build proactive handling before you hit the limit, rather than reacting to 429 errors.
+
+## When you exceed your limit
+
+If you exceed your monthly included calls, one of two things happens depending on your plan. On the Starter, Growth, and Scale plans, additional calls are billed at the overage rate for your tier — your service continues without interruption. On the Free (sandbox) plan, API calls return HTTP 429 once the 100-call limit is reached.
+
+```json
+{
+  "code": 429,
+  "message": "Monthly call limit exceeded. Upgrade your plan or wait for your limit to reset."
+}
+```
+
+## Handling 429 gracefully
+
+For real-time authentication flows (contact centre, login flows), hitting a rate limit mid-operation is a poor user experience. The right approach is to monitor the `X-RateLimit-Remaining` header as part of your application health metrics and alert your ops team when it drops below a threshold — say, 20% of monthly limit remaining — before you reach zero.
+
+For batch operations (bulk re-enrollment, historical data processing), implement exponential backoff when you receive a 429. A simple strategy is to wait 2 seconds, then 4, then 8, capping at 60 seconds between retries.

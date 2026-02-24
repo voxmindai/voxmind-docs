@@ -1,0 +1,36 @@
+---
+title: Language Support
+description: All languages supported by VoxMind's voice biometrics engine.
+---
+
+VoxMind's phoneme extraction model (XLSR-300M) was trained across 128 languages, making the core voice biometrics engine genuinely language-agnostic. This means a user can enroll in one language and authenticate in another — the voiceprint captures anatomical constants that don't change with language.
+
+The `language` parameter on enrollment and verification calls helps the phoneme segmentation model apply the correct acoustic boundaries for the submitted audio. It's optional (defaulting to `en-UK`) but specifying the correct language improves accuracy, particularly for languages with phoneme inventories that differ significantly from English.
+
+## Supported language codes
+
+The `language` field uses `[ISO 639-1]-[ISO 3166-1 alpha-2]` format.
+
+| Language | Code |
+|---|---|
+| English (UK) | `en-UK` |
+| English (US) | `en-US` |
+| French | `fr-FR` |
+| German | `de-DE` |
+| Spanish (Spain) | `es-ES` |
+| Spanish (Latin America) | `es-MX` |
+| Italian | `it-IT` |
+| Portuguese (Brazil) | `pt-BR` |
+| Portuguese (Portugal) | `pt-PT` |
+| Dutch | `nl-NL` |
+| Polish | `pl-PL` |
+| Russian | `ru-RU` |
+| Arabic (Modern Standard) | `ar-SA` |
+| Hindi | `hi-IN` |
+| Mandarin Chinese | `zh-CN` |
+| Japanese | `ja-JP` |
+| Korean | `ko-KR` |
+
+<Note>
+Additional language support is being expanded continuously. If your use case requires a language not listed, contact [support@voxmind.ai](mailto:support@voxmind.ai) — we can often add support for specific languages on request.
+</Note>

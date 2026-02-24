@@ -1,0 +1,168 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "VoxMind",
+  "logo": {
+    "dark": "/logo/voxmind-white.png",
+    "light": "/logo/voxmind-dark.png",
+    "href": "https://voxmind.ai"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#0b00ce",
+    "light": "#4d4aff",
+    "dark": "#0b00ce",
+    "background": {
+      "dark": "#0a0a0f",
+      "light": "#ffffff"
+    },
+    "anchors": {
+      "from": "#0b00ce",
+      "to": "#4d4aff"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@voxmind.ai"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get API Keys",
+    "url": "https://developers.voxmind.ai/signup"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Status",
+      "icon": "signal",
+      "url": "https://status.voxmind.ai"
+    },
+    {
+      "name": "Community",
+      "icon": "slack",
+      "url": "https://voxmind.ai/community"
+    },
+    {
+      "name": "Changelog",
+      "icon": "list",
+      "url": "https://voxmind.ai/changelog"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "getting-started/introduction",
+        "getting-started/quickstart",
+        "getting-started/authentication",
+        "getting-started/environments"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "guides/how-voice-biometrics-works",
+        "guides/enrollment-best-practices",
+        "guides/deepfake-detection",
+        "guides/language-support"
+      ]
+    },
+    {
+      "group": "Integration Guides",
+      "pages": [
+        "guides/contact-center-integration",
+        "guides/web-app-integration",
+        "guides/mobile-integration",
+        "guides/webhooks",
+        "guides/filtering-sorting-pagination"
+      ]
+    },
+    {
+      "group": "Resources",
+      "pages": [
+        "resources/error-codes",
+        "resources/rate-limits",
+        "resources/security",
+        "resources/changelog"
+      ]
+    },
+    {
+      "group": "Voice Core",
+      "pages": [
+        "api-reference/voice/enroll",
+        "api-reference/voice/verify"
+      ]
+    },
+    {
+      "group": "API Tokens",
+      "pages": [
+        "api-reference/tokens/list",
+        "api-reference/tokens/create",
+        "api-reference/tokens/get",
+        "api-reference/tokens/update",
+        "api-reference/tokens/delete"
+      ]
+    },
+    {
+      "group": "Organisation",
+      "pages": [
+        "api-reference/organisation/get",
+        "api-reference/organisation/update",
+        "api-reference/organisation/settings-get",
+        "api-reference/organisation/settings-update"
+      ]
+    },
+    {
+      "group": "Users",
+      "pages": [
+        "api-reference/users/list",
+        "api-reference/users/get",
+        "api-reference/users/update",
+        "api-reference/users/delete"
+      ]
+    },
+    {
+      "group": "Billing",
+      "pages": [
+        "api-reference/billing/plans-list",
+        "api-reference/billing/plans-get",
+        "api-reference/billing/subscriptions-list",
+        "api-reference/billing/subscriptions-get",
+        "api-reference/billing/invoices-list",
+        "api-reference/billing/invoices-get"
+      ]
+    },
+    {
+      "group": "Devices & Texts",
+      "pages": [
+        "api-reference/devices/list",
+        "api-reference/devices/get",
+        "api-reference/predefined-texts/list",
+        "api-reference/predefined-texts/create",
+        "api-reference/predefined-texts/get",
+        "api-reference/predefined-texts/update",
+        "api-reference/predefined-texts/delete"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "linkedin": "https://linkedin.com/company/voxmind",
+    "twitter": "https://twitter.com/voxmindai"
+  },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true
+  },
+  "api": {
+    "baseUrl": "https://api.voxmind.ai",
+    "auth": {
+      "method": "bearer",
+      "name": "Authorization"
+    }
+  }
+}

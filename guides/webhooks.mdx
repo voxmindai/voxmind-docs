@@ -1,0 +1,101 @@
+---
+title: Webhooks
+description: Receiving async results from VoxMind enrollment and verification calls.
+---
+
+VoxMind processes enrollments and verifications asynchronously — you submit a request, receive an immediate 202 Accepted, and then VoxMind calls your server with the result when processing is complete. This guide explains how to set up your webhook endpoint, what payloads to expect, and how to handle them reliably.
+
+## Why async?
+
+Running a voice recording through phoneme extraction, biomarker derivation, voiceprint matching, and deepfake detection is compute-intensive. The entire pipeline completes in under 2 seconds — but that's 2 seconds of meaningful processing time, not a round-trip that should block a synchronous HTTP connection. The async pattern keeps your application fast and lets VoxMind handle load spikes without affecting your API response times.
+
+## Setting up your webhook endpoint
+
+Your webhook endpoint is a POST handler on your server that VoxMind will call with the result payload. You configure the callback URL in your organisation settings.
+
+Your endpoint must:
+- Accept POST requests with a JSON body
+- Return HTTP 200 quickly (before any heavy processing on your end)
+- Be accessible from VoxMind's servers (i.e., not behind a VPN or firewall that blocks inbound traffic)
+
+A minimal Node.js example using Express:
+
+```javascript
+// Minimal webhook handler
+app.post('/webhooks/voxmind', express.json(), (req, res) => {
+  // Return 200 immediately so VoxMind knows we received it
+  res.sendStatus(200);
+
+  // Process the result asynchronously
+  const result = req.body;
+  handleVoxMindResult(result).catch(console.error);
+});
+
+async function handleVoxMindResult(result) {
+  const { request_uuid, external_id, result: outcome, match_score, deepfake_detected } = result;
+
+  if (deepfake_detected) {
+    // Log as security event, reject the attempt
+    await flagFraudAttempt(external_id, request_uuid);
+    return;
+  }
+
+  if (outcome === 'verified' && match_score >= 0.85) {
+    // Grant access - complete the authentication flow
+    await completeAuthentication(external_id, request_uuid);
+  } else {
+    // Failed verification
+    await handleFailedVerification(external_id, request_uuid);
+  }
+}
+```
+
+The key principle here is **respond first, process second**. If your webhook handler does heavy database work before returning 200, VoxMind may time out waiting for the response and retry. Always return 200 immediately and handle the payload in a background process or async function.
+
+## Matching results to requests
+
+Every enrollment and verification call includes a `request_uuid` that you provide in the request body. VoxMind includes this same UUID in the webhook payload. This is how you tie a webhook callback to the specific API call that triggered it.
+
+Store the `request_uuid` in your database when you make an API call, then look it up when the webhook arrives. This is the most reliable way to correlate results with the user sessions or transaction flows that initiated them — don't rely on timing or order of arrival.
+
+## Enrollment result payload
+
+```json
+{
+  "event_type": "enrollment.completed",
+  "request_uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "external_id": "user_12345",
+  "status": "success",
+  "voiceprint_quality_score": 0.91,
+  "created_at": "2025-03-15T14:22:31Z"
+}
+```
+
+If `status` is `failed`, the `voiceprint_quality_score` will be below threshold (typically below 0.5) and you should prompt the user to re-enroll with better audio quality.
+
+## Verification result payload
+
+```json
+{
+  "event_type": "verification.completed",
+  "request_uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "external_id": "user_12345",
+  "result": "verified",
+  "match_score": 0.94,
+  "deepfake_detected": false,
+  "latency_ms": 1247,
+  "created_at": "2025-03-15T14:25:08Z"
+}
+```
+
+The `result` field will be one of `verified`, `rejected`, or `inconclusive`. An inconclusive result typically indicates audio quality too low for a reliable determination — treat it the same as a rejection and prompt the user to try again.
+
+## Retry behaviour
+
+If your webhook endpoint is unavailable or returns a non-200 status code, VoxMind will retry delivery with exponential backoff — at 30 seconds, 5 minutes, 30 minutes, and 2 hours. After 4 failed attempts the event is dropped. This means a brief server outage won't cause you to permanently lose results, but extended downtime will. Design your infrastructure accordingly.
+
+## Local development and testing
+
+Testing webhooks in local development requires exposing your local server to the internet. [ngrok](https://ngrok.com) is the standard tool for this — it creates a public HTTPS tunnel to your localhost. Run `ngrok http 3000` and use the generated URL as your callback URL in your VoxMind organisation settings during development.
+
+Alternatively, many teams prefer to test webhook handling against a local VoxMind API mock using their preferred HTTP mocking tool, so they can iterate without needing a real webhook each time.

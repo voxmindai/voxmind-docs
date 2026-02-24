@@ -1,0 +1,66 @@
+---
+title: Filtering, Sorting & Pagination
+description: How to query list endpoints effectively using VoxMind's filter, sort, and pagination system.
+---
+
+All VoxMind list endpoints (`GET /organisations/{id}/users`, `GET /organisations/{id}/api-tokens`, etc.) support a consistent query system for filtering results, sorting them, and paginating through large collections. Once you understand the pattern, it applies identically across every list endpoint.
+
+## Filtering
+
+Filtering is controlled via the `filter` query parameter. Multiple filter conditions are comma-separated, and the system evaluates them with an implicit AND — meaning all conditions must be true for a result to be returned.
+
+The basic syntax for equality is `field=value`. For inequality, use `field!=value`. For more advanced comparisons, VoxMind supports a colon-delimited comparator syntax: `field=comparator:value`.
+
+The supported comparators are `gt` (greater than), `gte` (greater than or equal to), `lt` (less than), `lte` (less than or equal to), `like` (case-sensitive pattern match), and `ilike` (case-insensitive pattern match). The `like` and `ilike` comparators support standard SQL-style wildcards: `%` matches any string of zero or more characters, and `_` matches any single character.
+
+Here are some practical examples to illustrate the pattern:
+
+```
+# Get all tokens with a specific friendly name prefix
+GET /organisations/{id}/api-tokens?filter=friendly_name=like:production%
+
+# Get users created after a specific date
+GET /organisations/{id}/users?filter=created_at=gte:2025-01-01T00:00:00Z
+
+# Combine conditions: active users with a specific external ID pattern
+GET /organisations/{id}/users?filter=is_active=true,external_id=like:user_%
+
+# Exclude a specific value
+GET /organisations/{id}/users?filter=external_id!=deleted_user_123
+```
+
+## Sorting
+
+Sorting is controlled via the `sort` query parameter. It uses the same colon-delimiter pattern for direction: `sort=field:direction`. Use `asc` for ascending (A→Z, oldest→newest) and `desc` for descending. Multiple sort keys are comma-separated and applied in order of priority.
+
+```
+# Sort by creation date, newest first
+GET /organisations/{id}/users?sort=created_at:desc
+
+# Sort by name ascending, then by creation date descending as a tiebreaker
+GET /organisations/{id}/users?sort=name:asc,created_at:desc
+```
+
+## Pagination
+
+VoxMind uses page/per_page pagination rather than cursor-based pagination. The `per_page` parameter controls how many results are returned per page (maximum 300, default 100), and the `page` parameter specifies which page of results you want, starting at 1.
+
+The response headers include `X-Total-Pages`, which tells you how many pages exist in total for your query. This lets you build a complete pagination loop without needing to guess when you've reached the end.
+
+```bash
+# Get the second page of results, 50 per page
+GET /organisations/{id}/users?per_page=50&page=2
+
+# Check the X-Total-Pages header in the response
+# X-Total-Pages: 7 → there are 7 pages total at 50 items each
+```
+
+## Combining all three
+
+The real power comes from combining filtering, sorting, and pagination together to build efficient queries. For example, to retrieve all enabled API tokens ordered by creation date, 20 at a time:
+
+```bash
+GET /organisations/{id}/api-tokens?filter=enabled=true&sort=created_at:desc&per_page=20&page=1
+```
+
+If `X-Total-Pages` returns 3, you'd make two additional requests with `page=2` and `page=3` to retrieve the complete set. A clean pattern for this in application code is to loop while `current_page <= total_pages`, incrementing `page` on each iteration.

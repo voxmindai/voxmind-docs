@@ -1,0 +1,82 @@
+---
+title: "List Invoices"
+api: "GET /organisations/{orgId}/invoices"
+description: "Retrieve all invoices for your organisation, including billing period usage and document references."
+authMethod: "bearer"
+---
+
+## Overview
+
+Returns a paginated list of all invoices generated for your organisation. Each invoice corresponds to a billing period and includes a `file_ref` — a reference to the invoice PDF document. Use this endpoint to build an invoice history view in your own billing portal or to programmatically retrieve billing data for accounting systems.
+
+Invoices are generated automatically at the end of each billing period and include your base subscription charge plus any overage calls billed at your tier's overage rate.
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="filter" type="string">
+  Filter invoices. Example: `filter=sub_id=3` for all invoices under a specific subscription.
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Example: `sort=created_at:desc` for most recent invoices first.
+</ParamField>
+
+<ParamField query="per_page" type="integer" default="100">
+  Results per page. Maximum 300.
+</ParamField>
+
+<ParamField query="page" type="integer" default="1">
+  Page number.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+# Get the last 12 invoices
+curl -X GET "https://api.voxmind.ai/organisations/42/invoices?sort=created_at:desc&per_page=12" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Accept: application/json"
+```
+
+```python Python
+resp = requests.get(
+    "https://api.voxmind.ai/organisations/42/invoices",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+    params={"sort": "created_at:desc", "per_page": 12},
+)
+invoices = resp.json()["results"]
+for invoice in invoices:
+    print(f"Invoice #{invoice['invoice_sequence']} - Usage: {invoice['quotas']}")
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "results": [
+    {
+      "id": 11,
+      "org_id": 42,
+      "sub_id": 3,
+      "invoice_sequence": 3,
+      "quotas": {
+        "monthly_verifications": 9847,
+        "overage_calls": 0
+      },
+      "file_ref": "4d61d50295d55da651aa534a049fc2f159414b89d8d29a56160a266539acfcfc",
+      "created_at": "2025-03-31T23:59:59Z",
+      "updated_at": "2025-04-01T00:00:01Z"
+    }
+  ]
+}
+```
+
+</ResponseExample>

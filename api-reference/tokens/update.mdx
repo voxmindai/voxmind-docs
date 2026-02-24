@@ -1,0 +1,61 @@
+---
+title: "Update Token"
+api: "PATCH /organisations/{orgId}/api-tokens/{tokenId}"
+description: "Enable or disable an API token. The primary use case is disabling a token you suspect may be compromised without permanently deleting it."
+authMethod: "bearer"
+---
+
+## Overview
+
+The update endpoint currently supports toggling the `enabled` state of a token. Disabling a token immediately prevents it from being used for API calls while preserving its record for audit purposes. This is preferable to deletion when you want to retain a history of all tokens ever issued.
+
+A disabled token will return `401 Unauthorized` on any API request that uses it.
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+<ParamField path="tokenId" type="string" required>
+  The numeric ID of the token to update.
+</ParamField>
+
+## Request Body
+
+<ParamField body="enabled" type="boolean" required>
+  Set to `false` to immediately invalidate the token. Set back to `true` to re-enable it.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+# Disable a token immediately
+curl -X PATCH https://api.voxmind.ai/organisations/42/api-tokens/8 \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+```
+
+```python Python
+resp = requests.patch(
+    "https://api.voxmind.ai/organisations/42/api-tokens/8",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+    json={"enabled": False},
+)
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "id": 8,
+  "friendly_name": "production-server-01",
+  "enabled": false,
+  "updated_at": "2025-03-15T10:30:00Z"
+}
+```
+
+</ResponseExample>

@@ -1,0 +1,77 @@
+---
+title: "List Plans"
+api: "GET /plans"
+description: "Retrieve all available VoxMind subscription plans and their included quotas."
+authMethod: "bearer"
+---
+
+## Overview
+
+Returns all subscription plans available on the VoxMind platform. Plan details include the included call quotas and configuration thresholds. Use this endpoint to dynamically display plan information in your own billing UI or to programmatically check what's included in a given plan before prompting a user to upgrade.
+
+## Query Parameters
+
+<ParamField query="filter" type="string">
+  Filter plans by field values. Example: `filter=id=gte:2`
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Sort order. Example: `sort=id:asc`
+</ParamField>
+
+<ParamField query="per_page" type="integer" default="100">
+  Results per page. Maximum 300.
+</ParamField>
+
+<ParamField query="page" type="integer" default="1">
+  Page number.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+curl -X GET https://api.voxmind.ai/plans \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Accept: application/json"
+```
+
+```python Python
+resp = requests.get(
+    "https://api.voxmind.ai/plans",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+)
+plans = resp.json()["results"]
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "results": [
+    {
+      "id": 1,
+      "details": {
+        "name": "Starter",
+        "monthly_calls_included": 2500,
+        "overage_rate_gbp": 0.18
+      },
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    },
+    {
+      "id": 2,
+      "details": {
+        "name": "Growth",
+        "monthly_calls_included": 10000,
+        "overage_rate_gbp": 0.14
+      },
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+</ResponseExample>

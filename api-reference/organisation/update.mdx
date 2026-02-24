@@ -1,0 +1,89 @@
+---
+title: "Update Organisation"
+api: "PATCH /organisations/{orgId}"
+description: "Update your organisation's profile details — name, address, contact info, and tax identifiers."
+authMethod: "bearer"
+---
+
+## Overview
+
+Updates one or more fields in your organisation's profile. All fields are optional — only include the fields you want to change. Fields not included in the request body are left unchanged.
+
+The primary use case is keeping billing contact details and tax identifiers current for invoice generation.
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+## Request Body
+
+<ParamField body="name" type="string">
+  The legal or trading name of your organisation as it should appear on invoices.
+</ParamField>
+
+<ParamField body="address" type="string">
+  Full address including postcode and country, formatted as a single string.
+</ParamField>
+
+<ParamField body="email" type="string">
+  Primary contact email for billing and account notifications.
+</ParamField>
+
+<ParamField body="phone_number" type="string">
+  Main phone number in E.164 format (e.g., `+44 20 7946 0000`).
+</ParamField>
+
+<ParamField body="vat" type="string">
+  VAT registration number. Required for EU/UK businesses to receive VAT-compliant invoices.
+</ParamField>
+
+<ParamField body="vies" type="string">
+  VIES number for EU intra-community trade. Same as VAT number for most organisations.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+curl -X PATCH https://api.voxmind.ai/organisations/42 \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Security Ltd.",
+    "email": "billing@acmesecurity.com",
+    "vat": "GB123456789"
+  }'
+```
+
+```python Python
+resp = requests.patch(
+    "https://api.voxmind.ai/organisations/42",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+    json={
+        "name": "Acme Security Ltd.",
+        "email": "billing@acmesecurity.com",
+        "vat": "GB123456789",
+    },
+)
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "id": 42,
+  "name": "Acme Security Ltd.",
+  "address": "7 Bell Yard, London, England WC2A 2SJ, GB",
+  "email": "billing@acmesecurity.com",
+  "phone_number": "+44 20 7946 0000",
+  "vat": "GB123456789",
+  "vies": "GB123456789",
+  "created_at": "2025-01-15T09:00:00Z",
+  "updated_at": "2025-03-15T11:00:00Z"
+}
+```
+
+</ResponseExample>

@@ -1,0 +1,71 @@
+---
+title: "Update User"
+api: "PATCH /organisations/{orgId}/users/{userId}"
+description: "Update a user's active status. Use this to deactivate users without deleting their voiceprint record."
+authMethod: "bearer"
+---
+
+## Overview
+
+Currently supports updating the `is_active` flag on a user record. Setting `is_active: false` deactivates a user — they will no longer be able to authenticate via VoxMind until reactivated. The voiceprint data is preserved, so reactivation is instant with no re-enrollment required.
+
+This is the preferred approach when a user leaves your platform, has their account suspended, or should temporarily lose voice authentication access. Use deletion only when you need to permanently remove voiceprint data (e.g. GDPR erasure requests).
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+<ParamField path="userId" type="string" required>
+  VoxMind's internal numeric ID for the user.
+</ParamField>
+
+## Request Body
+
+<ParamField body="is_active" type="boolean" default="true">
+  Set to `false` to deactivate the user. Set back to `true` to reactivate.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+# Deactivate a user (e.g. account suspension)
+curl -X PATCH https://api.voxmind.ai/organisations/42/users/1001 \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": false}'
+```
+
+```python Python
+# Deactivate
+requests.patch(
+    "https://api.voxmind.ai/organisations/42/users/1001",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+    json={"is_active": False},
+)
+
+# Reactivate later
+requests.patch(
+    "https://api.voxmind.ai/organisations/42/users/1001",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+    json={"is_active": True},
+)
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "id": 1001,
+  "org_id": 42,
+  "external_id": "user_98765",
+  "is_active": false,
+  "created_at": "2025-02-10T09:15:00Z",
+  "updated_at": "2025-03-15T12:00:00Z"
+}
+```
+
+</ResponseExample>

@@ -1,0 +1,91 @@
+---
+title: "Create Predefined Text"
+api: "POST /organisations/{orgId}/predefined-texts"
+description: "Create a custom voice prompt for a specific language and text code."
+authMethod: "bearer"
+---
+
+## Overview
+
+Creates a new predefined text for your organisation. Each text is uniquely identified by the combination of `language` and `text_code` — you cannot have two texts with the same language and text_code pair. If you want to update an existing text, use the Update Predefined Text endpoint instead.
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+## Request Body
+
+<ParamField body="org_id" type="integer" required>
+  Your organisation's numeric ID. Must match the `orgId` path parameter.
+</ParamField>
+
+<ParamField body="language" type="string" required>
+  The language of this text, in `[ISO 639-1]-[ISO 3166-1 alpha-2]` format. Example: `en-UK`, `fr-FR`. See [Language Support](/guides/language-support) for the full list.
+</ParamField>
+
+<ParamField body="text_code" type="integer" required>
+  An integer you define to categorise this text. Use a consistent convention across your organisation — for example, `1` = enrollment prompt, `2` = verification prompt, `3` = failure message. The values themselves are arbitrary; the meaning is defined by your implementation.
+</ParamField>
+
+<ParamField body="text" type="string" required>
+  The actual text content — the prompt or instruction displayed or spoken to users. There is no hard character limit but keep prompts concise (under 200 characters) to avoid user friction.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+# Create an English enrollment prompt
+curl -X POST https://api.voxmind.ai/organisations/42/predefined-texts \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": 42,
+    "language": "en-UK",
+    "text_code": 1,
+    "text": "Please say your full name to register your voice."
+  }'
+```
+
+```python Python
+# Create prompts for multiple languages
+prompts = [
+    {"language": "en-UK", "text_code": 1, "text": "Please say your full name to register your voice."},
+    {"language": "fr-FR", "text_code": 1, "text": "Veuillez dire votre nom complet pour enregistrer votre voix."},
+    {"language": "de-DE", "text_code": 1, "text": "Bitte sagen Sie Ihren vollständigen Namen, um Ihre Stimme zu registrieren."},
+]
+
+for prompt in prompts:
+    resp = requests.post(
+        "https://api.voxmind.ai/organisations/42/predefined-texts",
+        headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+        json={"org_id": 42, **prompt},
+    )
+    print(resp.status_code, resp.json())
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201 Created
+{
+  "id": 23,
+  "org_id": 42,
+  "language": "en-UK",
+  "text_code": 1,
+  "text": "Please say your full name to register your voice.",
+  "created_at": "2025-03-15T10:00:00Z",
+  "updated_at": "2025-03-15T10:00:00Z"
+}
+```
+
+```json 409 Conflict
+{
+  "code": 409,
+  "message": "A predefined text with language 'en-UK' and text_code 1 already exists for this organisation"
+}
+```
+
+</ResponseExample>

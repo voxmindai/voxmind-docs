@@ -1,0 +1,76 @@
+---
+title: "List Subscriptions"
+api: "GET /organisations/{orgId}/subscriptions"
+description: "Retrieve all subscriptions for your organisation, including current plan, billing period dates, and subscription status."
+authMethod: "bearer"
+---
+
+## Overview
+
+Returns a list of subscription records for your organisation. In most cases, your organisation will have one active subscription at a time — the history of past subscriptions is accessible here if you need to audit plan changes or billing periods.
+
+Subscriptions are managed via the VoxMind dashboard rather than the API — this endpoint is primarily for reading state, not for changing plans. To upgrade or downgrade your plan, use the self-service billing section at [developers.voxmind.ai/billing](https://developers.voxmind.ai/billing).
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="filter" type="string">
+  Filter subscriptions. Example: `filter=plan_id=2` to find all subscriptions on the Growth plan.
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Sort order. Example: `sort=start_date:desc` for most recent first.
+</ParamField>
+
+<ParamField query="per_page" type="integer" default="100">
+  Results per page. Maximum 300.
+</ParamField>
+
+<ParamField query="page" type="integer" default="1">
+  Page number.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+# Get the current active subscription
+curl -X GET "https://api.voxmind.ai/organisations/42/subscriptions?sort=start_date:desc&per_page=1" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Accept: application/json"
+```
+
+```python Python
+resp = requests.get(
+    "https://api.voxmind.ai/organisations/42/subscriptions",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+    params={"sort": "start_date:desc", "per_page": 1},
+)
+current_subscription = resp.json()["results"][0]
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "results": [
+    {
+      "id": 3,
+      "org_id": 42,
+      "plan_id": 2,
+      "start_date": "2025-03-01",
+      "end_date": "2025-03-31",
+      "created_at": "2025-03-01T00:00:00Z",
+      "updated_at": "2025-03-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+</ResponseExample>

@@ -1,0 +1,66 @@
+---
+title: "List Devices"
+api: "GET /organisations/{orgId}/devices"
+description: "Retrieve all devices associated with enrolled users in your organisation."
+authMethod: "bearer"
+---
+
+## Overview
+
+Returns a paginated list of device records for your organisation. A device record is created when a `device_fingerprint` is included in an enrollment or verification call. Devices are useful for analytics — understanding whether your users authenticate consistently from the same device, or whether device-switching patterns correlate with fraud.
+
+Device records are created automatically when fingerprints are submitted. They cannot be created manually.
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="filter" type="string">
+  Filter conditions. Example: `filter=type=1` for mobile devices only.
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Example: `sort=last_used:desc`
+</ParamField>
+
+<ParamField query="per_page" type="integer" default="100">
+  Results per page. Maximum 300.
+</ParamField>
+
+<ParamField query="page" type="integer" default="1">
+  Page number.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://api.voxmind.ai/organisations/42/devices?sort=last_used:desc" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Accept: application/json"
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "results": [
+    {
+      "id": 501,
+      "user_id": 1001,
+      "fingerprint": "a3f9d2b1c8e74f5a6d0b2c3e1f9a8b7d...",
+      "type": 1,
+      "last_used": "2025-03-15T14:22:00Z",
+      "created_at": "2025-02-10T09:15:00Z",
+      "updated_at": "2025-03-15T14:22:00Z"
+    }
+  ]
+}
+```
+
+</ResponseExample>

@@ -1,0 +1,119 @@
+---
+title: "Issue API Token"
+api: "POST /organisations/{orgId}/api-tokens"
+description: "Issue a new long-lived API token for your organisation. The bearer value is shown only once — store it immediately."
+authMethod: "bearer"
+---
+
+## Overview
+
+Creates a new API token for your organisation. The `bearer` field in the response is the raw token string you'll use in `Authorization: Bearer` headers — this is the **only time it will ever be returned**. VoxMind stores only a hashed version and cannot retrieve it for you. Copy it to your secrets manager immediately.
+
+<Warning>
+**Save the bearer token immediately.** After the creation response, the raw token value is permanently inaccessible. If you lose it, you'll need to issue a new token and revoke the lost one.
+</Warning>
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+## Request Body
+
+<ParamField body="friendly_name" type="string">
+  A human-readable label to identify this token. Use descriptive names that reflect where the token is used — `production-api-server`, `staging-integration`, `avaya-webhook-handler`. Makes auditing and rotation significantly easier.
+</ParamField>
+
+<ParamField body="expires_at" type="string (datetime)">
+  Optional expiry time in UTC ISO 8601 format. If omitted, the token never expires. VoxMind recommends setting an expiry and implementing a rotation schedule for production tokens.
+</ParamField>
+
+<ParamField body="not_before" type="string (datetime)">
+  Optional. The earliest time from which the token is valid. Useful when pre-generating a replacement token ahead of a planned rotation.
+</ParamField>
+
+<ParamField body="enabled" type="boolean" default="true">
+  Whether the token is active at creation. Typically `true` — use `false` only if you're pre-generating a token for future activation.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+# Issue a production token with a 90-day expiry
+curl -X POST https://api.voxmind.ai/organisations/42/api-tokens \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "friendly_name": "production-server-01",
+    "expires_at": "2025-06-01T00:00:00Z",
+    "enabled": true
+  }'
+```
+
+```python Python
+import requests
+
+resp = requests.post(
+    "https://api.voxmind.ai/organisations/42/api-tokens",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+    json={
+        "friendly_name": "production-server-01",
+        "expires_at": "2025-06-01T00:00:00Z",
+        "enabled": True,
+    },
+)
+data = resp.json()
+# Store data["bearer"] in your secrets manager NOW
+```
+
+```javascript Node.js
+const response = await fetch(
+  "https://api.voxmind.ai/organisations/42/api-tokens",
+  {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer YOUR_API_TOKEN",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      friendly_name: "production-server-01",
+      expires_at: "2025-06-01T00:00:00Z",
+      enabled: true,
+    }),
+  }
+);
+const { bearer, token } = await response.json();
+// Store `bearer` in AWS Secrets Manager or equivalent — never log it
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201 Created
+{
+  "bearer": "eyJjbGllbnRfaWQiOiJZekV6TUdkb01ISm5PSEJpT0cxaWJE...",
+  "token": {
+    "id": 8,
+    "subject": "org_42",
+    "audience": "PUBLIC_API",
+    "algorithm": "HS256",
+    "friendly_name": "production-server-01",
+    "expires_at": "2025-06-01T00:00:00Z",
+    "not_before": null,
+    "enabled": true,
+    "created_at": "2025-03-01T09:00:00Z",
+    "updated_at": "2025-03-01T09:00:00Z"
+  }
+}
+```
+
+```json 409 Conflict
+{
+  "code": 409,
+  "message": "A token with this friendly_name already exists for your organisation"
+}
+```
+
+</ResponseExample>

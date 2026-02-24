@@ -1,0 +1,85 @@
+---
+title: "List Users"
+api: "GET /organisations/{orgId}/users"
+description: "Retrieve all users registered under your organisation. Supports filtering by active status, sorting, and pagination."
+authMethod: "bearer"
+---
+
+## Overview
+
+Returns a paginated list of users in your organisation. In the VoxMind data model, a "user" is any person who has been enrolled — they have a record in VoxMind's system tied to your `external_id` mapping. This endpoint is primarily useful for auditing your enrolled user base, checking active status, and integrating with your own user management dashboard.
+
+<Note>
+VoxMind users are identified by your `external_id`, not by any email or identity field. VoxMind does not store personal data about your users — just the `external_id` and voiceprint. Your application is responsible for mapping `external_id` to real users.
+</Note>
+
+## Path Parameters
+
+<ParamField path="orgId" type="string" required>
+  Your organisation's unique identifier.
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="filter" type="string">
+  Filter conditions. Useful patterns: `filter=is_active=true` (enrolled active users only), `filter=external_id=like:user_%` (users with a specific ID prefix).
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Example: `sort=created_at:desc`
+</ParamField>
+
+<ParamField query="per_page" type="integer" default="100">
+  Results per page. Maximum 300.
+</ParamField>
+
+<ParamField query="page" type="integer" default="1">
+  Page number. Total pages available in `X-Total-Pages` response header.
+</ParamField>
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://api.voxmind.ai/organisations/42/users?filter=is_active=true&sort=created_at:desc&per_page=50" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Accept: application/json"
+```
+
+```python Python
+resp = requests.get(
+    "https://api.voxmind.ai/organisations/42/users",
+    headers={"Authorization": "Bearer YOUR_API_TOKEN"},
+    params={"filter": "is_active=true", "sort": "created_at:desc", "per_page": 50},
+)
+users = resp.json()["results"]
+total_pages = int(resp.headers.get("X-Total-Pages", 1))
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 OK
+{
+  "results": [
+    {
+      "id": 1001,
+      "org_id": 42,
+      "external_id": "user_98765",
+      "is_active": true,
+      "created_at": "2025-02-10T09:15:00Z",
+      "updated_at": "2025-02-10T09:15:00Z"
+    },
+    {
+      "id": 1002,
+      "org_id": 42,
+      "external_id": "user_11223",
+      "is_active": true,
+      "created_at": "2025-02-11T14:30:00Z",
+      "updated_at": "2025-02-11T14:30:00Z"
+    }
+  ]
+}
+```
+
+</ResponseExample>

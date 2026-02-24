@@ -1,9 +1,9 @@
 ---
 title: Error Codes
-description: A complete reference for VoxMind API error responses and how to handle them.
+description: A complete reference for Voxmind API error responses and how to handle them.
 ---
 
-VoxMind uses standard HTTP status codes and returns structured JSON error bodies so you can programmatically handle failure cases in your integration.
+Voxmind uses standard HTTP status codes and returns structured JSON error bodies so you can programmatically handle failure cases in your integration.
 
 ## Error response format
 
@@ -42,7 +42,7 @@ The top-level `code` mirrors the HTTP status. The `errors` array is present on v
 
 **409 Conflict** — A uniqueness constraint was violated. The most common case is attempting to create a predefined text with a language and text_code combination that already exists. Update the existing resource instead of creating a new one.
 
-**503 Service Unavailable** — The VoxMind API is temporarily unavailable. Check [status.voxmind.ai](https://status.voxmind.ai) for real-time status. Implement exponential backoff with retry logic for 503 responses in production-critical flows.
+**503 Service Unavailable** — The Voxmind API is temporarily unavailable. Check [status.voxmind.ai](https://status.voxmind.ai) for real-time status. Implement exponential backoff with retry logic for 503 responses in production-critical flows.
 
 ## Common failure patterns and fixes
 

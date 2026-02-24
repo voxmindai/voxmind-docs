@@ -7,7 +7,7 @@ authMethod: "bearer"
 
 ## Overview
 
-Currently supports updating the `is_active` flag on a user record. Setting `is_active: false` deactivates a user — they will no longer be able to authenticate via VoxMind until reactivated. The voiceprint data is preserved, so reactivation is instant with no re-enrollment required.
+Currently supports updating the `is_active` flag on a user record. Setting `is_active: false` deactivates a user — they will no longer be able to authenticate via Voxmind until reactivated. The voiceprint data is preserved, so reactivation is instant with no re-enrollment required.
 
 This is the preferred approach when a user leaves your platform, has their account suspended, or should temporarily lose voice authentication access. Use deletion only when you need to permanently remove voiceprint data (e.g. GDPR erasure requests).
 
@@ -18,7 +18,7 @@ This is the preferred approach when a user leaves your platform, has their accou
 </ParamField>
 
 <ParamField path="userId" type="string" required>
-  VoxMind's internal numeric ID for the user.
+  Voxmind's internal numeric ID for the user.
 </ParamField>
 
 ## Request Body

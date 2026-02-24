@@ -1,9 +1,9 @@
 ---
 title: Language Support
-description: All languages supported by VoxMind's voice biometrics engine.
+description: All languages supported by Voxmind's voice biometrics engine.
 ---
 
-VoxMind's phoneme extraction model (XLSR-300M) was trained across 128 languages, making the core voice biometrics engine genuinely language-agnostic. This means a user can enroll in one language and authenticate in another — the voiceprint captures anatomical constants that don't change with language.
+Voxmind's phoneme extraction model (XLSR-300M) was trained across 128 languages, making the core voice biometrics engine genuinely language-agnostic. This means a user can enroll in one language and authenticate in another — the voiceprint captures anatomical constants that don't change with language.
 
 The `language` parameter on enrollment and verification calls helps the phoneme segmentation model apply the correct acoustic boundaries for the submitted audio. It's optional (defaulting to `en-UK`) but specifying the correct language improves accuracy, particularly for languages with phoneme inventories that differ significantly from English.
 

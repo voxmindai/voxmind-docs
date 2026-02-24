@@ -7,7 +7,7 @@ authMethod: "bearer"
 
 ## Overview
 
-Creates a new API token for your organisation. The `bearer` field in the response is the raw token string you'll use in `Authorization: Bearer` headers — this is the **only time it will ever be returned**. VoxMind stores only a hashed version and cannot retrieve it for you. Copy it to your secrets manager immediately.
+Creates a new API token for your organisation. The `bearer` field in the response is the raw token string you'll use in `Authorization: Bearer` headers — this is the **only time it will ever be returned**. Voxmind stores only a hashed version and cannot retrieve it for you. Copy it to your secrets manager immediately.
 
 <Warning>
 **Save the bearer token immediately.** After the creation response, the raw token value is permanently inaccessible. If you lose it, you'll need to issue a new token and revoke the lost one.
@@ -26,7 +26,7 @@ Creates a new API token for your organisation. The `bearer` field in the respons
 </ParamField>
 
 <ParamField body="expires_at" type="string (datetime)">
-  Optional expiry time in UTC ISO 8601 format. If omitted, the token never expires. VoxMind recommends setting an expiry and implementing a rotation schedule for production tokens.
+  Optional expiry time in UTC ISO 8601 format. If omitted, the token never expires. Voxmind recommends setting an expiry and implementing a rotation schedule for production tokens.
 </ParamField>
 
 <ParamField body="not_before" type="string (datetime)">

@@ -1,7 +1,7 @@
 ---
 title: "Get User"
 api: "GET /organisations/{orgId}/users/{userId}"
-description: "Retrieve a single user record by their VoxMind internal ID."
+description: "Retrieve a single user record by their Voxmind internal ID."
 authMethod: "bearer"
 ---
 
@@ -12,7 +12,7 @@ authMethod: "bearer"
 </ParamField>
 
 <ParamField path="userId" type="string" required>
-  VoxMind's internal numeric ID for the user. Note: this is the VoxMind-assigned `id`, not your `external_id`. If you only have the `external_id`, use the List Users endpoint with `filter=external_id=YOUR_ID` to find the corresponding VoxMind user record.
+  Voxmind's internal numeric ID for the user. Note: this is the Voxmind-assigned `id`, not your `external_id`. If you only have the `external_id`, use the List Users endpoint with `filter=external_id=YOUR_ID` to find the corresponding Voxmind user record.
 </ParamField>
 
 <RequestExample>
@@ -24,7 +24,7 @@ curl -X GET https://api.voxmind.ai/organisations/42/users/1001 \
 ```
 
 ```python Python
-# If you have the external_id and need the VoxMind user ID first:
+# If you have the external_id and need the Voxmind user ID first:
 resp = requests.get(
     "https://api.voxmind.ai/organisations/42/users",
     headers={"Authorization": "Bearer YOUR_API_TOKEN"},

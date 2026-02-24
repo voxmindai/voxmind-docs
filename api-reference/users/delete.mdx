@@ -7,13 +7,13 @@ authMethod: "bearer"
 
 ## Overview
 
-Permanently removes a user record and all associated voiceprint data from VoxMind's systems. This action cannot be undone. After deletion, the `external_id` is free to be re-enrolled as a new user if needed.
+Permanently removes a user record and all associated voiceprint data from Voxmind's systems. This action cannot be undone. After deletion, the `external_id` is free to be re-enrolled as a new user if needed.
 
 <Warning>
 Deletion is permanent and includes the voiceprint. If you only want to prevent a user from authenticating temporarily, use the Update User endpoint to set `is_active: false` instead. Reserve deletion for permanent removal scenarios.
 </Warning>
 
-The primary use case for deletion is fulfilling GDPR right-to-erasure requests — when a user requests that your platform delete all data associated with them, this endpoint ensures VoxMind's copy of their biometric data is also removed.
+The primary use case for deletion is fulfilling GDPR right-to-erasure requests — when a user requests that your platform delete all data associated with them, this endpoint ensures Voxmind's copy of their biometric data is also removed.
 
 ## Path Parameters
 
@@ -22,7 +22,7 @@ The primary use case for deletion is fulfilling GDPR right-to-erasure requests �
 </ParamField>
 
 <ParamField path="userId" type="string" required>
-  VoxMind's internal numeric ID for the user to permanently delete.
+  Voxmind's internal numeric ID for the user to permanently delete.
 </ParamField>
 
 <RequestExample>
@@ -34,7 +34,7 @@ curl -X DELETE https://api.voxmind.ai/organisations/42/users/1001 \
 
 ```python Python
 # Typical GDPR erasure workflow:
-# 1. Find the VoxMind user ID from your external_id
+# 1. Find the Voxmind user ID from your external_id
 resp = requests.get(
     "https://api.voxmind.ai/organisations/42/users",
     headers={"Authorization": "Bearer YOUR_API_TOKEN"},

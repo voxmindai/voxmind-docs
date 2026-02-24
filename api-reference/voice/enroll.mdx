@@ -9,10 +9,10 @@ authMethod: "bearer"
 
 Enrollment is the process of creating a voiceprint — a mathematical representation of a user's unique vocal characteristics — from a voice recording. Once enrolled, a user can be verified at any time by submitting a new recording and comparing it against their stored voiceprint.
 
-Enrollment is **asynchronous**. You submit the request, receive a 202 Accepted immediately, and VoxMind delivers the result (including voiceprint quality score and status) to your configured callback URL when processing is complete. This typically takes 1–3 seconds.
+Enrollment is **asynchronous**. You submit the request, receive a 202 Accepted immediately, and Voxmind delivers the result (including voiceprint quality score and status) to your configured callback URL when processing is complete. This typically takes 1–3 seconds.
 
 <Note>
-A user's `external_id` is your identifier — use whatever format you use in your own system (UUID, integer, email, etc.). VoxMind doesn't validate the format; it just stores and returns it. Consistency is what matters: the same `external_id` must be used in all future verification calls for this user.
+A user's `external_id` is your identifier — use whatever format you use in your own system (UUID, integer, email, etc.). Voxmind doesn't validate the format; it just stores and returns it. Consistency is what matters: the same `external_id` must be used in all future verification calls for this user.
 </Note>
 
 ## Path Parameters
@@ -28,7 +28,7 @@ A user's `external_id` is your identifier — use whatever format you use in you
 </ParamField>
 
 <ParamField body="request_uuid" type="string (UUID)" required>
-  A unique identifier you generate for this request. VoxMind returns this value in the webhook callback so you can match the async result to the originating request. Use UUID v4.
+  A unique identifier you generate for this request. Voxmind returns this value in the webhook callback so you can match the async result to the originating request. Use UUID v4.
 </ParamField>
 
 <ParamField body="external_id" type="string" required>
@@ -36,7 +36,7 @@ A user's `external_id` is your identifier — use whatever format you use in you
 </ParamField>
 
 <ParamField body="language" type="string" default="en-UK">
-  The primary language of the audio, in `[ISO 639-1]-[ISO 3166-1 alpha-2]` format (e.g., `en-UK`, `fr-FR`, `de-DE`, `es-ES`). VoxMind is language-agnostic — users can verify in any language after enrolling — but specifying the language improves phoneme boundary detection accuracy. See [Language Support](/guides/language-support) for all supported values.
+  The primary language of the audio, in `[ISO 639-1]-[ISO 3166-1 alpha-2]` format (e.g., `en-UK`, `fr-FR`, `de-DE`, `es-ES`). Voxmind is language-agnostic — users can verify in any language after enrolling — but specifying the language improves phoneme boundary detection accuracy. See [Language Support](/guides/language-support) for all supported values.
 </ParamField>
 
 <ParamField body="device_fingerprint" type="string">
@@ -50,7 +50,7 @@ A user's `external_id` is your identifier — use whatever format you use in you
 ## Response
 
 <ResponseField name="callback_url" type="string">
-  The webhook URL VoxMind will call with the enrollment result. This is your configured callback URL pulled from organisation settings.
+  The webhook URL Voxmind will call with the enrollment result. This is your configured callback URL pulled from organisation settings.
 </ResponseField>
 
 <ResponseField name="message" type="string">

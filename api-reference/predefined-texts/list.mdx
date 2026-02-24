@@ -7,12 +7,12 @@ authMethod: "bearer"
 
 ## Overview
 
-Predefined texts are the voice prompts or on-screen instructions you configure to guide users through enrollment and verification. Because VoxMind is text-independent, users can say anything — but in a well-designed authentication UX, you'll want to present them with a specific prompt that feels natural and consistent with your application.
+Predefined texts are the voice prompts or on-screen instructions you configure to guide users through enrollment and verification. Because Voxmind is text-independent, users can say anything — but in a well-designed authentication UX, you'll want to present them with a specific prompt that feels natural and consistent with your application.
 
 For example, a contact centre might configure: _"Please say your name and account reference to verify your identity."_ A banking app might use: _"Please say your passphrase to confirm this transaction."_ Each text is associated with a language code and a `text_code` integer that you define to categorise it (e.g. `1` = enrollment prompt, `2` = verification prompt).
 
 <Note>
-Predefined texts are entirely optional configuration. If you don't configure any, VoxMind still processes voice data correctly — you'd simply handle the user-facing prompt within your own application UI.
+Predefined texts are entirely optional configuration. If you don't configure any, Voxmind still processes voice data correctly — you'd simply handle the user-facing prompt within your own application UI.
 </Note>
 
 ## Path Parameters

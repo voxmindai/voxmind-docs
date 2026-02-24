@@ -1,15 +1,15 @@
 ---
 title: Filtering, Sorting & Pagination
-description: How to query list endpoints effectively using VoxMind's filter, sort, and pagination system.
+description: How to query list endpoints effectively using Voxmind's filter, sort, and pagination system.
 ---
 
-All VoxMind list endpoints (`GET /organisations/{id}/users`, `GET /organisations/{id}/api-tokens`, etc.) support a consistent query system for filtering results, sorting them, and paginating through large collections. Once you understand the pattern, it applies identically across every list endpoint.
+All Voxmind list endpoints (`GET /organisations/{id}/users`, `GET /organisations/{id}/api-tokens`, etc.) support a consistent query system for filtering results, sorting them, and paginating through large collections. Once you understand the pattern, it applies identically across every list endpoint.
 
 ## Filtering
 
 Filtering is controlled via the `filter` query parameter. Multiple filter conditions are comma-separated, and the system evaluates them with an implicit AND — meaning all conditions must be true for a result to be returned.
 
-The basic syntax for equality is `field=value`. For inequality, use `field!=value`. For more advanced comparisons, VoxMind supports a colon-delimited comparator syntax: `field=comparator:value`.
+The basic syntax for equality is `field=value`. For inequality, use `field!=value`. For more advanced comparisons, Voxmind supports a colon-delimited comparator syntax: `field=comparator:value`.
 
 The supported comparators are `gt` (greater than), `gte` (greater than or equal to), `lt` (less than), `lte` (less than or equal to), `like` (case-sensitive pattern match), and `ilike` (case-insensitive pattern match). The `like` and `ilike` comparators support standard SQL-style wildcards: `%` matches any string of zero or more characters, and `_` matches any single character.
 
@@ -43,7 +43,7 @@ GET /organisations/{id}/users?sort=name:asc,created_at:desc
 
 ## Pagination
 
-VoxMind uses page/per_page pagination rather than cursor-based pagination. The `per_page` parameter controls how many results are returned per page (maximum 300, default 100), and the `page` parameter specifies which page of results you want, starting at 1.
+Voxmind uses page/per_page pagination rather than cursor-based pagination. The `per_page` parameter controls how many results are returned per page (maximum 300, default 100), and the `page` parameter specifies which page of results you want, starting at 1.
 
 The response headers include `X-Total-Pages`, which tells you how many pages exist in total for your query. This lets you build a complete pagination loop without needing to guess when you've reached the end.
 

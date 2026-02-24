@@ -1,6 +1,6 @@
-# VoxMind Documentation
+# Voxmind Documentation
 
-This repository contains the source files for the VoxMind developer documentation, published at `docs.voxmind.ai` via Mintlify.
+This repository contains the source files for the Voxmind developer documentation, published at `docs.voxmind.ai` via Mintlify.
 
 ## Repository structure
 

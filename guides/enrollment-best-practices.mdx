@@ -9,7 +9,7 @@ This guide covers everything you need to know to capture good enrollment audio f
 
 ## Minimum audio requirements
 
-VoxMind accepts WAV and MP3 audio files. The recording should be **at least 3 seconds of clean speech**, with 5 seconds being the sweet spot for optimal voiceprint accuracy. The sample rate should be a minimum of 16kHz — most modern recording APIs on web and mobile default to 44.1kHz or 48kHz, which is fine; VoxMind will downsample internally.
+Voxmind accepts WAV and MP3 audio files. The recording should be **at least 3 seconds of clean speech**, with 5 seconds being the sweet spot for optimal voiceprint accuracy. The sample rate should be a minimum of 16kHz — most modern recording APIs on web and mobile default to 44.1kHz or 48kHz, which is fine; Voxmind will downsample internally.
 
 What matters far more than length is the **signal-to-noise ratio**. Three seconds of clean speech in a quiet room produces a better voiceprint than ten seconds of speech with consistent background noise, because the phoneme-frequency extraction pipeline has to work harder to isolate clean phoneme boundaries when noise is present.
 
@@ -17,7 +17,7 @@ What matters far more than length is the **signal-to-noise ratio**. Three second
 
 The enrollment experience matters for two reasons: it affects audio quality (users who understand what you need will speak more naturally and clearly) and it affects completion rates (users who find the process confusing will abandon it).
 
-**Tell users what to say.** Even though VoxMind is text-independent, users benefit from a prompt. "Please say your full name and confirm today's date" works well — it's natural, generates varied phoneme content, and gives users something specific to focus on rather than feeling like they're talking into the void.
+**Tell users what to say.** Even though Voxmind is text-independent, users benefit from a prompt. "Please say your full name and confirm today's date" works well — it's natural, generates varied phoneme content, and gives users something specific to focus on rather than feeling like they're talking into the void.
 
 **Use a visual indicator to show recording is active.** A simple animated waveform or countdown timer signals that the system is listening and processing. Without it, users often speak too softly or stop speaking before the required duration.
 
@@ -29,7 +29,7 @@ The enrollment experience matters for two reasons: it affects audio quality (use
 
 Enrollment returns HTTP 202 (Accepted) immediately and delivers the result to your configured webhook endpoint when processing is complete, typically within 1–3 seconds. Your webhook payload will indicate whether the enrollment was successful and whether the voiceprint quality meets the threshold for reliable verification.
 
-If the enrollment quality score is below the minimum threshold — which can happen with very short audio, very noisy recordings, or audio where no clear speech was detected — VoxMind will flag this in the webhook response. Build your flow to handle this gracefully: rather than silently failing, tell the user the enrollment didn't capture clearly and prompt them to try again.
+If the enrollment quality score is below the minimum threshold — which can happen with very short audio, very noisy recordings, or audio where no clear speech was detected — Voxmind will flag this in the webhook response. Build your flow to handle this gracefully: rather than silently failing, tell the user the enrollment didn't capture clearly and prompt them to try again.
 
 ## Re-enrollment and voiceprint updates
 
@@ -39,6 +39,6 @@ This is intentional: maintaining a single current voiceprint keeps the matching 
 
 ## Multi-language enrollment
 
-VoxMind supports 15+ languages and is text-independent, which means a user can enroll in one language and verify in another with no degradation in accuracy. However, for the best voiceprint quality, it's good practice to have users enroll in the language they're most likely to speak during verification. This is a marginal difference rather than a functional one, but it's worth noting for deployments where users speak multiple languages within your application.
+Voxmind supports 15+ languages and is text-independent, which means a user can enroll in one language and verify in another with no degradation in accuracy. However, for the best voiceprint quality, it's good practice to have users enroll in the language they're most likely to speak during verification. This is a marginal difference rather than a functional one, but it's worth noting for deployments where users speak multiple languages within your application.
 
 See the [Language Support guide](/guides/language-support) for the full list of supported languages and ISO codes.

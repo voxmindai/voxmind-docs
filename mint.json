@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "VoxMind",
+  "name": "Voxmind",
   "logo": {
     "dark": "/logo/voxmind-white.png",
     "light": "/logo/voxmind-dark.png",

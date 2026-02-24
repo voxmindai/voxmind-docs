@@ -1,0 +1,120 @@
+---
+title: Contact Centre Integration
+description: How to integrate Voxmind voice authentication into a contact centre environment — covering IVR flows, agent-assisted authentication, and SIP telephony considerations.
+---
+
+Contact centres are the highest-volume use case for voice biometrics. A caller rings in, speaks naturally during the IVR or the opening of an agent conversation, and Voxmind either confirms their identity silently in the background or prompts them for a brief verification phrase. Done well, authentication becomes invisible — customers stop reciting account numbers and security questions, and agents spend less time on identity verification and more time resolving the actual query.
+
+This guide covers the architecture decisions, audio pipeline requirements, and application logic patterns specific to contact centre deployments. It assumes you've already completed the [Quickstart](/getting-started/quickstart) and understand the basic enrollment and verification flow.
+
+## Understanding the telephony audio challenge
+
+The single most important thing to understand about contact centre integration is that telephony audio is deliberately constrained. The public switched telephone network (PSTN), VoIP protocols like SIP, and codec standards like G.711 and G.729 were designed to transmit intelligible speech efficiently — not to preserve the full acoustic richness of a human voice. The result is audio sampled at 8kHz with a frequency response that cuts off above 4kHz, compared to the 16kHz or higher sampling rates that voice biometric models were originally trained on.
+
+This isn't a dealbreaker — Voxmind is explicitly designed and tested against telephony-grade audio — but it does shape some of your integration decisions. In particular, it affects which audio source you capture from, how you handle codec transcoding, and what you communicate to users about acceptable recording conditions.
+
+The most important practical decision you'll make is **where in your telephony stack to capture audio**. You have two main options. The first is capturing from the recording stream of your contact centre platform — most enterprise platforms (Avaya, Genesys, Cisco UCCX, Amazon Connect, and others) expose a call recording API or SIPREC stream that gives you a copy of the audio in near-real time. The second is capturing directly at the IVR layer, where your IVR platform collects the audio and hands it to your backend. The SIPREC approach is generally preferable for agent-assisted authentication because it captures the full conversation naturally. The IVR capture approach is better for passive authentication during self-service flows.
+
+## Enrollment in a contact centre context
+
+Enrollment is the step most integrations underinvest in, and it directly determines the quality of every subsequent verification. In a contact centre deployment, you have a few distinct opportunities to enroll users.
+
+**First-call enrollment** is the most seamless approach for new customers. When a verified customer (authenticated via another method — OTP, password, agent-assisted KBA) calls for the first time, the IVR or agent UI presents a consent prompt and collects 20–30 seconds of natural speech for enrollment. The enrollment audio doesn't need to be a specific phrase — Voxmind's text-independent approach means the IVR can ask the caller to describe their query briefly while simultaneously capturing the enrollment sample.
+
+**Proactive enrollment** is done outside the call itself — for example, via a web or mobile app where the customer explicitly creates their voice profile. This approach gives you better audio quality (no telephony codec degradation), cleaner consent capture, and more control over the enrollment conditions. If your platform has a mobile or web channel, enrolling there and then using that voiceprint to authenticate on future calls is architecturally clean and gives you a better baseline voiceprint.
+
+**In-call silent enrollment** is possible but requires careful UX design. If a caller speaks enough during a single call — typically 30+ seconds of natural speech across the IVR and agent conversation — Voxmind can construct a voiceprint from that audio retrospectively. This is useful for progressively enrolling your existing customer base without an explicit enrollment step, but you must ensure consent was captured before processing begins.
+
+Whatever your enrollment path, the core principle is the same: send audio via `POST /organisations/{orgId}/voice/enroll` with the customer's `external_id`, and store the fact that enrollment is complete in your own CRM or customer database. Voxmind returns `status: enrolled` once enough audio has been processed — at which point every subsequent call by that customer becomes an authentication opportunity.
+
+## Two authentication patterns
+
+### IVR passive authentication
+
+In this pattern, the caller authenticates during the IVR before ever reaching an agent. The IVR captures a short audio sample — typically a spoken account number, date of birth, or a simple free-text response to a standard prompt — and sends it to Voxmind in the background. By the time the caller is routed to an agent, Voxmind has already returned a verification result, and the agent screen-pop can show the authentication status immediately.
+
+The UX flow looks like this: the IVR greets the caller and asks them to state their reason for calling or say their name. Simultaneously, it extracts the `external_id` from the caller's input (account number keypad entry, for example) or from a CRM lookup based on the incoming CLI/ANI. It sends the audio and `external_id` to `POST /organisations/{orgId}/voice/verify`, and listens for the webhook result. If `result: verified` comes back before the call is routed, the agent sees a green authentication indicator. If it comes back after routing, the agent UI updates in real time via a WebSocket push.
+
+```javascript
+// IVR backend: capture audio, kick off async verification
+async function onIvrSpeechCapture(audioBuffer, callerId) {
+  // Resolve your external_id — could be from ANI lookup, account keypad, or IVR prompt
+  const externalId = await resolveExternalId(callerId);
+
+  if (!externalId) {
+    // No enrolled user found — route to agent for manual KBA
+    return routeToAgentWithStatus(callerId, 'NOT_ENROLLED');
+  }
+
+  // Send to Voxmind asynchronously — don't block the IVR on the result
+  const formData = new FormData();
+  formData.append('audio', new Blob([audioBuffer], { type: 'audio/wav' }));
+  formData.append('external_id', externalId);
+  formData.append('request_uuid', generateUuid()); // Track this for webhook correlation
+
+  await fetch('https://api.voxmind.ai/organisations/42/voice/verify', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer YOUR_API_TOKEN' },
+    body: formData,
+  });
+
+  // Route the call — verification result will arrive via webhook
+  return routeToAgentWithStatus(callerId, 'VERIFICATION_PENDING');
+}
+
+// Webhook handler: update agent screen-pop when result arrives
+app.post('/webhooks/voxmind', async (req, res) => {
+  const { request_uuid, external_id, result, match_score, deepfake_detected } = req.body;
+  res.sendStatus(200); // Acknowledge immediately
+
+  if (deepfake_detected) {
+    await flagCallForFraudReview(external_id, request_uuid);
+    await pushToAgentUI(external_id, { auth_status: 'DEEPFAKE_DETECTED' });
+    return;
+  }
+
+  const status = result === 'verified' && match_score >= 0.82
+    ? 'AUTHENTICATED'
+    : 'FAILED';
+
+  await pushToAgentUI(external_id, { auth_status: status, match_score });
+});
+```
+
+### Agent-assisted authentication
+
+In agent-assisted flows, the agent triggers authentication during the call — typically when a caller requests an action that requires identity verification (a large transaction, account change, or access to sensitive data). The agent clicks an "Authenticate" button in their desktop UI, the system captures the next 10–15 seconds of the caller's speech, and the result appears on the agent's screen.
+
+This pattern is simpler to implement because the agent controls when authentication starts, but it introduces a moment of friction — the caller is typically aware that an authentication check is happening. For high-value interactions this is appropriate and expected. For routine queries, the IVR passive approach is less disruptive.
+
+The backend implementation is identical — `POST /voice/verify`, wait for webhook — but the trigger mechanism is an agent UI action rather than an automatic IVR event.
+
+## Handling the inconclusive result in telephony
+
+Telephony audio is noisier and more variable than web or mobile audio. Background noise in the caller's environment, poor mobile signal, speakerphone degradation, and codec artefacts can all reduce audio quality to the point where Voxmind returns `result: inconclusive` rather than `verified` or `rejected`.
+
+In a contact centre context, `inconclusive` should route to a fallback path rather than a retry. Unlike a web or mobile app where you can ask the user to speak again in a quieter location, a contact centre caller has limited control over their environment. The graceful handling is to present `inconclusive` as a soft failure — the agent authenticates via a secondary method (last four digits of a card, a security question, or a one-time passcode) and notes the inconclusive result for your analytics pipeline. Over time, the inconclusive rate is a useful signal for tuning your audio capture quality.
+
+## SIP and SIPREC considerations
+
+If you're integrating with a SIP-based telephony platform using SIPREC for real-time audio capture, there are a few practical points worth knowing.
+
+First, SIPREC streams are typically G.711 (ulaw or alaw) at 8kHz. Voxmind accepts this natively — you don't need to transcode to a higher sample rate before sending. If your platform offers G.722 (wideband, 16kHz), use it when available as it produces marginally better results, but G.711 is fully supported.
+
+Second, SIPREC delivers audio in two legs — the caller's audio and the agent's audio as separate streams. For verification purposes, you want the caller's audio leg only. Mixing both legs into a single stream before sending to Voxmind will degrade results because the model will be trying to match against a voiceprint that was enrolled from a single-speaker source.
+
+Third, if your platform introduces audio compression or aggressive noise cancellation at the infrastructure level before the SIPREC tap, those processing steps can sometimes alter the spectral characteristics of the audio in ways that affect voiceprint matching. If you're seeing lower match scores than expected in production, the SIPREC tap point is the first thing to investigate.
+
+## Consent and compliance
+
+Contact centre voice authentication deployments involve biometric data collected from callers in a telephony context. Regulatory requirements vary by jurisdiction, but in general you should: disclose to callers that voice biometrics are being used for authentication, obtain consent before the first enrollment, provide a mechanism to opt out (which means offering an alternative authentication path), and retain records of consent in your CRM alongside the Voxmind enrollment status.
+
+In the UK and EU, biometric data processing requires an explicit legal basis under GDPR Article 9. In many US states, the Illinois Biometric Information Privacy Act (BIPA) and similar laws apply. In Australia, the Privacy Act covers biometric data. Voxmind does not make compliance determinations on your behalf — you should consult your legal team about the specific obligations in your operating jurisdictions.
+
+The standard contact centre disclosure is a brief IVR or agent-read statement along the lines of: *"This call may use voice biometrics for authentication and fraud prevention purposes. By continuing, you consent to your voice being used for these purposes."* A caller who withholds consent should be offered an alternative authentication path — typically KBA or OTP — without penalty.
+
+## Recommended match score thresholds for contact centres
+
+Based on typical telephony audio quality and the authentication risk profile of contact centre interactions, a match score threshold of **0.80–0.85** is appropriate for most use cases. High-value transactions — large transfers, account recovery, address changes — warrant a higher threshold of **0.88–0.92**. Routine service calls — balance enquiry, bill payment, appointment booking — can operate at the lower end of the range without meaningful security degradation.
+
+Start at 0.82, monitor your false reject rate (how often enrolled customers fail to authenticate) and false accept rate (how often authentication succeeds for the wrong person, detectable only through fraud analytics), and adjust from there. The right threshold is the one that balances customer friction against your organisation's fraud risk tolerance — there's no universally correct value.

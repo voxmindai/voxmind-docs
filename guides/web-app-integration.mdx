@@ -1,0 +1,236 @@
+---
+title: Web App Integration
+description: How to integrate Voxmind voice authentication into a browser-based application — covering microphone capture, audio quality, enrollment UX, and client-server architecture.
+---
+
+Web applications present a different set of integration constraints compared to telephony or mobile. The audio quality ceiling is higher — browsers can capture at 16kHz or above, well above the 8kHz telephony floor — but the diversity of hardware (cheap built-in laptop microphones versus high-quality headsets) and environments (open-plan offices, coffee shops, home setups) creates a wide quality range you need to handle gracefully. This guide covers everything from browser microphone capture to UX patterns and the client-server architecture that keeps your API token secure.
+
+## The fundamental architecture rule: never expose your API token in the browser
+
+Before any implementation detail, one rule that is non-negotiable: your Voxmind API token must never appear in browser-side JavaScript. If a user opens DevTools and can find your bearer token in network requests, JavaScript bundles, or environment variables, anyone on the internet can impersonate your users using that token.
+
+The correct architecture is for your backend to act as a proxy for all Voxmind API calls. Your browser-side code captures audio and sends it to your own server endpoint. Your server then forwards the audio to Voxmind's API, attaches the secret bearer token server-side, receives the result, and returns an appropriate response to the browser — without ever exposing the raw Voxmind response or your credentials to the client.
+
+```
+Browser                    Your Server              Voxmind API
+   │                            │                        │
+   │── POST /auth/enroll ──────>│                        │
+   │   (audio blob + user info) │                        │
+   │                            │── POST /voice/enroll ─>│
+   │                            │   (with bearer token)  │
+   │                            │<── 200 OK ─────────────│
+   │<── { status: "enrolled" } ─│                        │
+```
+
+This pattern also gives you a natural place to add your own business logic — rate limiting, fraud heuristics, audit logging, consent verification — before audio reaches Voxmind.
+
+## Capturing audio in the browser
+
+The Web Audio API and `MediaRecorder` are the two primary browser tools for voice capture. `MediaRecorder` is the simpler path for most integration scenarios and is supported in all modern browsers.
+
+The key parameters to get right are the MIME type and the sample rate. Voxmind accepts PCM WAV and common compressed formats including MP3 and AAC, but for best results in a web context, capture as `audio/wav` or `audio/webm;codecs=opus`. Opus is a high-quality codec that works well at 16kHz and is natively supported by Chrome, Firefox, and Edge. Safari requires `audio/mp4` as a fallback.
+
+```javascript
+// A clean, reusable audio capture utility for enrollment and verification
+class VoxmindAudioCapture {
+  constructor() {
+    this.mediaRecorder = null;
+    this.chunks = [];
+    this.stream = null;
+  }
+
+  async start() {
+    // Request microphone access — the browser will show a native permission prompt
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        sampleRate: 16000,         // 16kHz: optimal for voice biometrics
+        channelCount: 1,           // Mono: all we need, halves file size
+        echoCancellation: true,    // Reduce room echo
+        noiseSuppression: true,    // Reduce background noise
+        autoGainControl: true,     // Normalise volume across different microphones
+      },
+    });
+
+    // Determine the best supported MIME type for this browser
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/mp4'; // Safari fallback
+
+    this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
+    this.chunks = [];
+
+    this.mediaRecorder.addEventListener('dataavailable', (e) => {
+      if (e.data.size > 0) this.chunks.push(e.data);
+    });
+
+    this.mediaRecorder.start(100); // Capture in 100ms chunks for streaming if needed
+  }
+
+  stop() {
+    return new Promise((resolve) => {
+      this.mediaRecorder.addEventListener('stop', () => {
+        const blob = new Blob(this.chunks, { type: this.mediaRecorder.mimeType });
+        // Clean up the microphone stream so the browser's recording indicator disappears
+        this.stream.getTracks().forEach((track) => track.stop());
+        resolve(blob);
+      });
+      this.mediaRecorder.stop();
+    });
+  }
+}
+```
+
+One practical detail: call `stream.getTracks().forEach(track => track.stop())` as soon as you've finished recording. If you don't, the browser's microphone-in-use indicator (the red dot or camera icon in the browser tab) will stay active, which erodes user trust. Stop the stream as soon as the blob is captured, every time.
+
+## Enrollment UX patterns
+
+Enrollment is the only moment where you have to ask something slightly unusual of a user: *"Say something for a few seconds so we can learn your voice."* How you frame this interaction significantly affects completion rates.
+
+The most effective framing ties the enrollment request to an immediate, concrete benefit the user can see. Instead of explaining voice biometrics, show the user what they're getting: *"Enable voice ID to sign in with your voice next time — no password needed."* Present enrollment as an optional feature with clear value, not as a compliance step. Completion rates are markedly higher when enrollment is opt-in and clearly labelled as making the user's life easier.
+
+For the recording itself, aim for at least 20 seconds of natural speech. You can collect this in one of two ways. The first is a **scripted passage** — you show the user a sentence or two to read aloud. This is predictable and easy to implement, and it gives you consistent audio length and content. The second is **prompted free speech** — you ask the user a simple question ("Describe what you plan to use this account for") and let them respond naturally. Free speech enrollment produces a voiceprint that reflects more natural voice variation, which generally improves later verification performance. Either approach works; scripted is easier to implement, prompted free speech produces better long-term results.
+
+Always show a real-time audio level visualiser during recording. Users with no visual feedback don't know whether the microphone is working. A simple waveform or volume bar built on `AnalyserNode` from the Web Audio API is enough — the point is to confirm to the user that their voice is being captured, and to give them immediate feedback if their microphone level is too low.
+
+```javascript
+// Minimal volume visualiser using Web Audio AnalyserNode
+function createVolumeMonitor(stream, onVolumeChange) {
+  const audioContext = new AudioContext();
+  const source = audioContext.createMediaStreamSource(stream);
+  const analyser = audioContext.createAnalyser();
+  analyser.fftSize = 256;
+  source.connect(analyser);
+
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  function tick() {
+    analyser.getByteFrequencyData(data);
+    // Average energy across frequency bins — 0 to 255 range
+    const volume = data.reduce((a, b) => a + b, 0) / data.length;
+    onVolumeChange(volume); // Pass to your UI component to drive the visualiser
+    requestAnimationFrame(tick);
+  }
+
+  tick();
+  return () => audioContext.close(); // Return cleanup function
+}
+```
+
+## Sending audio to your backend proxy
+
+Once recording is complete, send the audio blob to your backend via a standard multipart POST. Your backend then forwards it to Voxmind. The important thing is that this is a single-direction call from the browser's perspective — the user doesn't wait for the Voxmind webhook. You return a `202 Accepted` to the browser immediately, and your backend processes the webhook result asynchronously.
+
+```javascript
+// Browser-side: send to your backend proxy
+async function submitEnrollmentAudio(audioBlob, userId) {
+  const form = new FormData();
+  form.append('audio', audioBlob, 'enrollment.webm');
+  form.append('user_id', userId);
+
+  const response = await fetch('/api/voice/enroll', {
+    method: 'POST',
+    body: form,
+    // No Content-Type header — the browser sets it with the correct boundary for FormData
+  });
+
+  if (!response.ok) throw new Error('Enrollment submission failed');
+  return response.json(); // { status: 'processing', request_uuid: '...' }
+}
+```
+
+```javascript
+// Server-side proxy (Node.js/Express): forward to Voxmind
+app.post('/api/voice/enroll', authenticate, async (req, res) => {
+  const { userId } = req.body;
+  const audioFile = req.files.audio;
+
+  const form = new FormData();
+  form.append('audio', audioFile.buffer, {
+    filename: 'enrollment.webm',
+    contentType: audioFile.mimetype,
+  });
+  form.append('external_id', userId);
+  form.append('request_uuid', generateUuid());
+
+  const response = await fetch(
+    `https://api.voxmind.ai/organisations/42/voice/enroll`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.VOXMIND_API_TOKEN}`, // Server-side only
+        ...form.getHeaders(),
+      },
+      body: form,
+    }
+  );
+
+  const result = await response.json();
+  res.status(202).json({ status: 'processing', request_uuid: result.request_uuid });
+});
+```
+
+## Handling the webhook result in a web context
+
+Voxmind sends verification results to your webhook endpoint — a server-to-server call that happens asynchronously after the user's audio is processed. In a web application, this creates the challenge of getting that asynchronous result back to the browser in near real-time without the user having to refresh.
+
+The two standard approaches are WebSocket connections and server-sent events (SSE). WebSockets are bidirectional and appropriate if you need real-time updates for other features in your application. SSE is simpler to implement and perfectly adequate for this use case — the server only needs to push one event to the browser (the verification result), not maintain ongoing two-way communication.
+
+A practical pattern: when the user submits audio for verification, your server returns a `request_uuid`. The browser opens an SSE connection to a `/api/voice/verify/stream?request_uuid=xxx` endpoint. Your webhook handler receives the Voxmind result, looks up which SSE connection is waiting on that `request_uuid`, and pushes the result. The browser receives the event and updates the UI.
+
+```javascript
+// Browser: open SSE connection after submitting audio
+async function verifyVoice(audioBlob) {
+  const { requestUuid } = await submitVerificationAudio(audioBlob);
+
+  return new Promise((resolve, reject) => {
+    const sse = new EventSource(`/api/voice/verify/stream?request_uuid=${requestUuid}`);
+
+    sse.addEventListener('result', (event) => {
+      sse.close();
+      resolve(JSON.parse(event.data));
+    });
+
+    sse.addEventListener('error', () => {
+      sse.close();
+      reject(new Error('Verification stream error'));
+    });
+
+    // Timeout after 30 seconds — something went wrong upstream
+    setTimeout(() => {
+      sse.close();
+      reject(new Error('Verification timed out'));
+    }, 30000);
+  });
+}
+```
+
+## Microphone permission UX
+
+Browsers require explicit user permission to access the microphone. The permission prompt appears the first time you call `getUserMedia`. There are a few things worth handling carefully here.
+
+First, request microphone permission at the moment it's contextually obvious why you need it — not on page load, and not buried in an onboarding flow. Request it at the exact moment the user clicks "Record your voice." Users are significantly more likely to grant permission when they initiated the action that requires it.
+
+Second, handle the `NotAllowedError` that comes back if the user denies permission. Show a clear message explaining that voice ID requires microphone access, and include instructions for re-enabling it in their browser settings. Don't just show a generic error — users who accidentally denied permission are often willing to re-enable it if you explain why it's needed and how to do it.
+
+Third, on HTTPS: `getUserMedia` only works on secure origins. In production this is a non-issue — you're already serving over HTTPS. In development, use `localhost` (which browsers treat as a secure origin) rather than an IP address or `http://` URL, otherwise your microphone capture code won't work at all.
+
+## Audio quality checks before sending
+
+Rather than sending audio blindly and handling a poor-quality result from Voxmind, you can do a lightweight client-side quality check before submission. Two checks are worth implementing. The first is a minimum duration check — if the recorded audio is under 5 seconds, it's almost certainly too short for reliable verification, and you can prompt the user to try again before the round trip to your server. The second is a minimum volume check — if the average audio level from your `AnalyserNode` was below a threshold throughout the recording, the microphone may be muted or the user was speaking too quietly. Both checks can be done in milliseconds client-side and save you unnecessary API calls.
+
+```javascript
+function isAudioUsable(blob, averageVolume, durationSeconds) {
+  if (durationSeconds < 5) {
+    return { ok: false, reason: 'Recording too short — please speak for at least 5 seconds.' };
+  }
+  if (averageVolume < 15) { // 0–255 scale from AnalyserNode
+    return { ok: false, reason: 'Microphone level too low — check your microphone is not muted.' };
+  }
+  if (blob.size < 10000) { // Less than 10KB is suspiciously small for 5+ seconds of audio
+    return { ok: false, reason: 'Audio data appears incomplete — please try again.' };
+  }
+  return { ok: true };
+}
+```
+
+These are fast, cheap checks that meaningfully improve the user experience when things go wrong — particularly for users on devices with muted microphones or browser permission issues.

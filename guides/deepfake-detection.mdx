@@ -33,13 +33,13 @@ AASIST models these relationships using a **graph attention network** where node
 
 The practical result is that AASIST generalises well to voice cloning architectures it wasn't explicitly trained on, which matters because the synthesis model landscape is evolving rapidly. You don't want a deepfake detector that only works against last year's cloning tools.
 
-## The numbers: what a sub-0.1% false positive rate means in practice
+## The numbers: what <0.1% false positive rate means in practice
 
 Voxmind's false positive rate — the rate at which genuine human speech is incorrectly flagged as synthetic — is **under 0.1%**. This is the number that matters most for your integration design, so let's unpack what it actually means for your users.
 
 A false positive rate of 0.1% means that in every 1,000 legitimate verification attempts by real, enrolled users, fewer than 1 will be incorrectly flagged as a deepfake. At a contact centre processing 50,000 calls per month, that's fewer than 50 false deepfake flags across the entire month — about 1-2 per day — all of which can be recovered through a fallback authentication path.
 
-Compare this to false positive rates in the 1–5% range that are common in less specialised approaches: at 1%, that same 50,000-call contact centre would generate 500 false flags per month, which is a meaningful customer experience problem. At a sub-0.1%, it's a manageable edge case rather than a systematic friction point.
+Compare this to false positive rates in the 1–5% range that are common in less specialised approaches: at 1%, that same 50,000-call contact centre would generate 500 false flags per month, which is a meaningful customer experience problem. At <0.1%, it's a manageable edge case rather than a systematic friction point.
 
 The false positive rate was measured against a diverse test set spanning multiple languages, microphone types (mobile, landline, VOIP, headset), acoustic environments (office, home, outdoor, IVR), and demographic groups including speakers with accents, older voices, and voices affected by illness. The number is not cherry-picked from ideal lab conditions.
 

@@ -1,0 +1,84 @@
+---
+title: Security
+description: How Voxmind handles your data, protects your API credentials, and approaches the security of biometric information — from data residency to key management to penetration testing.
+---
+
+Security documentation for a voice biometrics platform needs to serve two audiences simultaneously. CTOs and procurement teams need a clear, honest overview of data handling, compliance posture, and the principles that govern how biometric data is stored and processed — enough to make a trust decision. Security engineers and architects need the technical specifics: how keys are managed, what the audit trail looks like, what the network perimeter is, and what scope is available for your own penetration testing programme. This page is structured to serve both. The overview sections come first; the technical depth is below.
+
+## Data handling principles
+
+Voxmind processes audio to create and match voiceprints. Understanding what data is retained, where it lives, and for how long is the starting point for any security or compliance evaluation.
+
+**Audio files are not retained.** When you submit audio for enrollment or verification, Voxmind processes that audio to extract the voiceprint representation and then discards the raw audio. Voxmind does not build a library of your users' voice recordings. The only thing that persists after enrollment is the mathematical voiceprint — a set of extracted acoustic features that cannot be trivially reversed into intelligible speech. This is a deliberate architectural choice, not just a privacy nicety: retaining raw audio would create a much larger attack surface and a significantly more sensitive data store. Discarding it immediately reduces Voxmind's data footprint to the minimum required for authentication.
+
+**Voiceprints are stored against your `external_id`, not against personal data.** Voxmind has no knowledge of your users' names, email addresses, phone numbers, or any other personally identifiable information. The voiceprint is associated only with the opaque `external_id` string you provide. Your application is responsible for the mapping between `external_id` and real user identity. This means that even in the event of a breach of Voxmind's voiceprint store, the extracted data could not be trivially linked to real individuals without access to your own CRM — a significant mitigation against the impact of any hypothetical data exposure.
+
+**Data residency.** Voxmind's production infrastructure is hosted in AWS eu-west-1 (Ireland), with all customer data stored and processed within the EU. This is relevant for GDPR compliance — data does not leave the EU in normal operation. If your use case requires UK-specific data residency or a dedicated single-tenant deployment, contact us to discuss enterprise deployment options.
+
+**Retention and deletion.** Voiceprint data is retained for as long as the user account is active in your system. When you call `DELETE /organisations/{orgId}/users/{userId}`, the voiceprint is permanently deleted from Voxmind's systems within 24 hours. This deletion is irreversible and is the correct mechanism for fulfilling GDPR right-to-erasure requests for voice biometric data. There is no recovery path after deletion — if a user is deleted in error, they will need to re-enroll.
+
+## API credential security
+
+Your Voxmind bearer token is the key to your organisation's voice authentication service. Compromising it would allow an attacker to enroll arbitrary voiceprints, run verifications against your enrolled users, or extract user metadata from your account. Treat it accordingly.
+
+The fundamental rule is simple: the token lives on your server, not in your application code or client-side assets. For web integrations, this means proxying all Voxmind API calls through your backend. For mobile integrations, the same applies — the token never appears in your app bundle. This is covered in detail in the [Web App Integration](/guides/web-app-integration) and [Mobile App Integration](/guides/mobile-integration) guides.
+
+Voxmind's API token management follows the same security principles as the token value itself. When a token is issued via `POST /organisations/{orgId}/api-tokens`, the bearer value is shown exactly once — Voxmind stores only a cryptographic hash, not the raw value. If you lose the token, you issue a new one and revoke the lost one. There is no recovery mechanism, which means there is also no mechanism for an attacker to social-engineer a token recovery.
+
+Tokens support human-readable `friendly_name` labels, expiry dates, and immediate revocation via a single API call or dashboard toggle. We recommend a 90-day rotation schedule for production tokens and immediate rotation if you have any reason to believe a token may have been exposed. The rotation process takes under a minute: issue a new token, update your server's environment variable, revoke the old token, done.
+
+## Biometric data classification
+
+Voiceprints are biometric data under GDPR Article 9 (special category data), the Illinois Biometric Information Privacy Act (BIPA), and equivalent regulations in other jurisdictions. Voxmind is the data processor; your organisation is the data controller. This means:
+
+The consent obligation rests with you. Voxmind provides the technical capability; you are responsible for obtaining and recording lawful consent from users before their audio is enrolled. The minimum required disclosure is that voice biometrics are being used for authentication, what data is retained, and the user's right to have that data deleted.
+
+Your privacy notice should reference voice biometric processing. If you're subject to GDPR, your Record of Processing Activities (RoPA) should include the voice authentication processing activity, with Voxmind listed as a sub-processor. Voxmind's Data Processing Agreement (DPA) is available on request from your account manager.
+
+The deletion pathway is the user's right to erasure. When a user requests deletion of their biometric data, the API call `DELETE /organisations/{orgId}/users/{userId}` fulfils that request — Voxmind permanently removes the voiceprint within 24 hours and you remove the enrollment record from your own system. Document this workflow in your data subject rights procedure.
+
+---
+
+## Technical security reference
+
+*This section is aimed at security engineers and architects who need technical specifics for their own risk assessments, security architecture documentation, and penetration testing programmes.*
+
+### Transport security
+
+All communication with Voxmind's API occurs over TLS 1.2 or higher. TLS 1.0 and 1.1 are not accepted. The minimum cipher suite is AES-128-GCM; AES-256-GCM is preferred and negotiated by default with modern clients. Certificate pinning is not enforced at the API level but is available for enterprise deployments where a fixed certificate is required by your security policy.
+
+For webhook delivery from Voxmind to your server, the same TLS standards apply — Voxmind will reject webhook endpoints that present self-signed certificates or certificates with known weak ciphers. Your webhook endpoint must present a valid certificate from a publicly trusted CA.
+
+### Data at rest
+
+Voiceprint data at rest is encrypted using AES-256. Encryption keys are managed using AWS KMS with automatic annual rotation. Customer data is logically isolated at the database level — queries cannot return records belonging to another organisation regardless of the API token used, as `org_id` scoping is enforced at every data access layer, not only at the API gateway.
+
+### Audit logging
+
+Every API call, authentication event, and administrative action is logged with a timestamp, the requesting token ID, the `external_id` where applicable, the IP address of the calling server, and the result. These logs are retained for 12 months and are available to you in aggregate via the dashboard's analytics views. For specific event lookup by `request_uuid`, the webhook result payload contains all the fields needed for your own audit trail — we recommend persisting webhook results in your own database for independent audit purposes rather than relying solely on Voxmind's logs.
+
+Events that always appear in the audit log include: token issuance, token revocation, user creation (enrollment), user deletion, verification attempts (with result and match score), and deepfake detection flags. There is no mechanism to delete audit log entries — the log is append-only.
+
+### Authentication and authorisation model
+
+Voxmind uses HMAC-SHA256 signed JWT tokens as the bearer credential. When a token is issued, the signing secret is generated with 256 bits of entropy using a cryptographically secure random number generator. The token payload includes the `org_id` as the subject, the audience (`PUBLIC_API`), and an optional expiry. Voxmind verifies the signature on every API request before processing — there is no session state server-side.
+
+Authorisation is organisation-scoped: a valid token for organisation A cannot read, write, or delete data belonging to organisation B. This isolation is enforced at the application layer and at the database layer (row-level scoping on all tables). There is currently a single permission level per token — all tokens for an organisation have the same access scope. Fine-grained token permissions (read-only tokens, enroll-only tokens) are on the product roadmap.
+
+### Rate limiting and abuse prevention
+
+The API enforces rate limits per token to prevent brute-force attacks against enrolled voiceprints. The verification endpoint is rate-limited at 60 requests per minute per token, with a burst allowance of 10 requests per second. Requests that exceed the rate limit receive a `429 Too Many Requests` response with a `Retry-After` header. Sustained high rates of verification failures from a single token trigger an alert to Voxmind's fraud monitoring team and may result in temporary token suspension pending investigation.
+
+If your legitimate use case requires higher rate limits — for example, a contact centre processing a high call volume — contact your account manager to discuss adjusted limits. Enterprise plans include custom rate limit configurations.
+
+### Penetration testing
+
+You are permitted and encouraged to conduct penetration testing against your own Voxmind API integration. The scope for your testing includes: the API endpoints under your organisation's `orgId`, the authentication and authorisation mechanisms for your own tokens, the webhook delivery endpoint on your own server, and the audio processing pipeline as exercised by your enrolled users.
+
+The scope explicitly excludes: any attempt to access data belonging to other organisations, any testing against Voxmind's infrastructure layer (AWS resources, databases, internal services), any denial-of-service testing, and any attempt to extract or reverse-engineer voiceprint data. These restrictions are consistent with AWS's penetration testing policy, which governs the underlying infrastructure.
+
+If your security programme requires a full penetration test report from Voxmind's own security team, or access to our most recent third-party penetration test results, contact your account manager. Enterprise customers have access to Voxmind's penetration test reports under NDA.
+
+### Vulnerability disclosure
+
+If you discover a security vulnerability in Voxmind's API or infrastructure, please report it to security@voxmind.ai with a description of the issue, reproduction steps, and your contact details. We aim to acknowledge all reports within 24 hours and provide a resolution timeline within 72 hours. We operate a responsible disclosure policy — we ask for a reasonable timeframe to address critical issues before public disclosure, and we recognise researchers who report vulnerabilities responsibly.

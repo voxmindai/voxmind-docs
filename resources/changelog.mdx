@@ -1,0 +1,90 @@
+---
+title: Changelog
+description: A record of all notable changes to the Voxmind API and developer platform — new features, improvements, deprecations, and breaking changes.
+---
+
+This changelog follows [Semantic Versioning](https://semver.org/) for the API. Breaking changes increment the major version and are always communicated with a minimum 60-day deprecation notice. Non-breaking additions and improvements increment the minor version. Bug fixes increment the patch version.
+
+To receive change notifications by email, enable changelog alerts in your [account settings](https://developers.voxmind.ai/settings/notifications).
+
+---
+
+## v1.3.0 — 2025-03-01
+
+**Deepfake detection now included on all verification calls.**
+
+AASIST-based deepfake detection is now enabled by default across all plans and all verification calls. The `deepfake_detected` field in webhook results and verification responses reflects the result of this check. No integration changes are required to receive the signal — if you are already handling webhook results, `deepfake_detected` will now always be present in the payload.
+
+We recommend auditing your webhook handler to ensure you are evaluating `deepfake_detected` before your match score threshold logic. See the [Deepfake Detection guide](/guides/deepfake-detection) for the correct decision tree and application logic patterns.
+
+**New: `device_fingerprint` parameter on verify endpoint.**
+
+You can now optionally submit a device fingerprint alongside verification audio. When provided, Voxmind records the device association and makes it available via the Devices API. This enables device-pattern analytics — understanding whether a user is authenticating from a consistent set of devices or from an unusual new device. Submitting a fingerprint has no effect on the verification result itself; it is purely for your analytics and fraud tooling.
+
+**Improvement: `inconclusive` result now includes a `quality_signal` field.**
+
+When a verification returns `result: inconclusive`, the webhook payload now includes a `quality_signal` field with one of three values: `low_volume`, `excessive_noise`, or `insufficient_duration`. This gives your application enough information to show the user a targeted prompt — "speak closer to your microphone" versus "find a quieter location" — rather than a generic retry message. This is a non-breaking addition.
+
+---
+
+## v1.2.1 — 2025-02-15
+
+**Bug fix: match score precision in webhook payloads.**
+
+In some edge cases, `match_score` was being returned as an integer (`1`) rather than a float (`1.0`) when the score reached the maximum value. This caused type errors in strictly typed applications. The field now consistently returns a float across all result values. This was a serialisation bug only — the underlying score calculation was unaffected.
+
+---
+
+## v1.2.0 — 2025-02-01
+
+**New: Predefined Texts API.**
+
+You can now manage your organisation's voice prompt templates via the API rather than only through the dashboard. This enables programmatic management of multi-language prompt libraries — useful for organisations operating across multiple locales. See the [Predefined Texts API reference](/api-reference/predefined-texts/list) for the full endpoint documentation.
+
+**New: Organisation Settings API.**
+
+The `alert_on_failure` setting is now configurable via API in addition to the dashboard. When enabled, Voxmind sends an alert to your organisation's contact email when verification failure rates exceed baseline thresholds — a useful early-warning signal for both fraud events and integration issues. See [Update Settings](/api-reference/organisation/settings-update).
+
+**Improvement: Enrollment now returns estimated voiceprint quality.**
+
+The enrollment webhook payload now includes a `voiceprint_quality` field with a value of `good`, `acceptable`, or `marginal`. A `marginal` quality score indicates the enrollment audio was processed successfully but the voiceprint has lower confidence than ideal — typically because the audio was short, noisy, or captured in a degraded telephony environment. For `marginal` enrollments, we recommend prompting the user to re-enroll under better conditions before relying on the voiceprint for high-value authentication. See [Enrollment Best Practices](/guides/enrollment-best-practices).
+
+---
+
+## v1.1.0 — 2025-01-15
+
+**New: Multi-language support expanded to 17 languages.**
+
+The XLSR-300M phoneme extraction model now supports 17 language configurations, with improved performance across Arabic, Mandarin, and Brazilian Portuguese compared to the previous version. Because Voxmind is text-independent, these improvements apply to both enrollment and verification without any integration changes. See [Language Support](/guides/language-support) for the full list of supported ISO language codes.
+
+**New: Filtering, sorting, and pagination on all list endpoints.**
+
+All `GET` endpoints that return collections now support `filter`, `sort`, `per_page`, and `page` query parameters. See [Filtering, Sorting & Pagination](/guides/filtering-sorting-pagination) for the complete syntax reference.
+
+**Improvement: Reduced verification latency.**
+
+Median verification latency has been reduced from 2.8 seconds to 1.9 seconds through pipeline optimisation. The latency reduction applies to all verification calls and does not require any integration changes. The maximum SLA remains 5 seconds.
+
+---
+
+## v1.0.0 — 2025-01-01
+
+**General Availability.**
+
+Voxmind API v1.0.0 is generally available. The v1 API surface is stable — breaking changes will be communicated with a minimum 60-day deprecation period and will increment the major version number.
+
+The v1 GA release includes: voice enrollment and verification (text-independent, language-agnostic), asynchronous webhook delivery, API token management, user and organisation management, and the Billing API for plan and subscription retrieval.
+
+---
+
+## Deprecation policy
+
+When a feature, endpoint, or behaviour is deprecated, it will continue to function for a minimum of 60 days after the deprecation announcement. Deprecation notices appear in this changelog under a **Deprecated** heading and are also sent by email to the technical contact on your account. After the deprecation window closes, the feature is removed in the next major version release.
+
+If a deprecation significantly impacts your integration and 60 days is insufficient for your release cycle, contact support to discuss an extended migration period.
+
+---
+
+## Breaking change history
+
+No breaking changes have been introduced since v1.0.0 GA.

@@ -1,0 +1,215 @@
+---
+title: Mobile App Integration
+description: How to integrate Voxmind voice authentication into iOS, Android, and React Native applications — covering microphone capture, background noise handling, security considerations, and UX patterns for mobile-specific contexts.
+---
+
+Mobile is an ideal context for voice biometrics — users are already accustomed to biometric authentication on their phones (Face ID, Touch ID, fingerprint), the microphone hardware is generally high quality, and voice authentication complements rather than competes with the existing biometric stack. For use cases where a user can't look at a screen or use their hands, voice becomes the only viable authentication mechanism.
+
+This guide covers the mobile-specific considerations that differ meaningfully from web and contact centre integrations: platform audio APIs, microphone permissions, background noise, offline resilience, and the security model for keeping your API credentials out of the app binary.
+
+## The mobile security architecture
+
+The same rule that applies to web integrations applies here: your Voxmind API token must never be embedded in your app bundle. APK and IPA files can be decompiled. Strings embedded in compiled code, including those stored as environment variables or constants, are recoverable by a determined attacker. If your token appears in the app, it is effectively public.
+
+The correct architecture is identical to the web pattern — your app sends audio to your own backend, your backend proxies the call to Voxmind with the bearer token attached server-side. The app never touches the Voxmind API directly.
+
+For the app-to-backend leg, use your normal authenticated API calls with your own session token or JWT. This means the chain of trust is: the user authenticates to your app normally (via whatever method you use for non-voice flows), your app receives a session token, and that session token is what authorises the voice enrollment or verification call to your backend. Voxmind then becomes an additional authentication layer on top of your existing auth system, not a replacement for it.
+
+## iOS audio capture
+
+On iOS, the `AVAudioEngine` and `AVAudioRecorder` APIs handle microphone input. For voice biometrics, `AVAudioEngine` gives you more control over the audio pipeline and is the preferred approach for production integrations.
+
+The key iOS-specific settings are the audio session category and the sample rate. You want `AVAudioSessionCategoryRecord` or `AVAudioSessionCategoryPlayAndRecord` with `AVAudioSessionModeVoiceChat` — this mode tells iOS to apply voice-optimised signal processing, including acoustic echo cancellation and noise suppression that is tuned for voice rather than music. The sample rate should be 16kHz for voice biometric capture. iOS natively supports this rate and it gives Voxmind the frequency resolution it needs for reliable phoneme analysis above the telephony-grade 8kHz floor.
+
+```swift
+import AVFoundation
+
+class VoxmindRecorder {
+    private var audioEngine = AVAudioEngine()
+    private var audioBuffer = [Float]()
+
+    func requestPermissionAndStart() {
+        // Always request permission at the moment it's contextually obvious
+        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
+            guard granted else {
+                // Handle denial gracefully — show instructions for re-enabling in Settings
+                return
+            }
+            DispatchQueue.main.async { self?.start() }
+        }
+    }
+
+    private func start() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            // VoiceChat mode applies the signal processing tuned for human speech
+            try session.setCategory(.record, mode: .voiceChat)
+            try session.setPreferredSampleRate(16000)
+            try session.setActive(true)
+        } catch {
+            print("AVAudioSession setup failed: \(error)")
+            return
+        }
+
+        let inputNode = audioEngine.inputNode
+        // Use the hardware's native format for capture, then resample if needed
+        let recordingFormat = AVAudioFormat(
+            standardFormatWithSampleRate: 16000,
+            channels: 1
+        )!
+
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) {
+            [weak self] buffer, _ in
+            // Accumulate PCM samples — send to backend when done
+            let channelData = buffer.floatChannelData![0]
+            self?.audioBuffer.append(contentsOf: UnsafeBufferPointer(
+                start: channelData,
+                count: Int(buffer.frameLength)
+            ))
+        }
+
+        try? audioEngine.start()
+    }
+
+    func stop() -> Data {
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        // Convert Float PCM to WAV Data for upload
+        return convertToWav(samples: audioBuffer, sampleRate: 16000)
+    }
+}
+```
+
+## Android audio capture
+
+On Android, the `AudioRecord` API gives you low-level PCM access, or you can use `MediaRecorder` for a simpler integration that outputs directly to a file in a compressed format. For voice biometrics, `AudioRecord` with PCM capture is preferred because it gives you control over the audio pipeline and avoids codec-introduced artefacts before the audio reaches Voxmind.
+
+The critical Android-specific parameter is the `audioSource`. Use `MediaRecorder.AudioSource.VOICE_RECOGNITION` rather than the default `MIC` source. The `VOICE_RECOGNITION` source signals to Android's audio subsystem that this audio is destined for speech processing — on most devices this disables noise suppression and automatic gain control at the hardware level, which sounds counterintuitive but is correct for voice biometrics. You want the raw voice signal, not a pre-processed one, so that Voxmind's own processing can operate on clean input.
+
+```kotlin
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import java.io.ByteArrayOutputStream
+
+class VoxmindRecorder {
+    private val sampleRate = 16000
+    private val channelConfig = AudioFormat.CHANNEL_IN_MONO
+    private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+    private val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+
+    private var audioRecord: AudioRecord? = null
+    private var isRecording = false
+
+    fun start() {
+        // VOICE_RECOGNITION source: raw voice without hardware pre-processing
+        audioRecord = AudioRecord(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            sampleRate,
+            channelConfig,
+            audioFormat,
+            bufferSize
+        )
+        audioRecord?.startRecording()
+        isRecording = true
+    }
+
+    fun stop(): ByteArray {
+        isRecording = false
+        val outputStream = ByteArrayOutputStream()
+        val buffer = ShortArray(bufferSize)
+
+        // Drain remaining audio from the buffer
+        val bytesRead = audioRecord?.read(buffer, 0, bufferSize) ?: 0
+        if (bytesRead > 0) {
+            // Convert shorts to bytes for WAV output
+            buffer.take(bytesRead).forEach { sample ->
+                outputStream.write(sample.toInt() and 0xFF)
+                outputStream.write((sample.toInt() shr 8) and 0xFF)
+            }
+        }
+
+        audioRecord?.stop()
+        audioRecord?.release()
+        return addWavHeader(outputStream.toByteArray(), sampleRate)
+    }
+}
+```
+
+## React Native
+
+If you're using React Native, the `expo-av` library (for Expo-managed projects) or `react-native-audio-recorder-player` (for bare React Native) are the standard choices. Both expose the platform's native audio APIs under the hood, so the same iOS and Android considerations above apply — you're just invoking them through a JavaScript bridge.
+
+The most important React Native-specific consideration is making sure you're not capturing through a library that resamples audio to 8kHz before handing it to you. Some older React Native audio libraries default to telephony-grade sample rates. Always verify the sample rate of the audio blob before sending to your backend — a file that's labelled as 16kHz but was actually captured at 8kHz is common enough to check for explicitly.
+
+```javascript
+import { Audio } from 'expo-av';
+
+async function startRecording() {
+  const { granted } = await Audio.requestPermissionsAsync();
+  if (!granted) throw new Error('Microphone permission denied');
+
+  await Audio.setAudioModeAsync({
+    allowsRecordingIOS: true,
+    playsInSilentModeIOS: true, // Important: without this, iOS mutes recording in silent mode
+  });
+
+  const { recording } = await Audio.Recording.createAsync({
+    android: {
+      extension: '.wav',
+      outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+      audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+      sampleRate: 16000,
+      numberOfChannels: 1,
+      bitRate: 128000,
+    },
+    ios: {
+      extension: '.wav',
+      audioQuality: Audio.IOSAudioQuality.HIGH,
+      sampleRate: 16000,
+      numberOfChannels: 1,
+      bitRate: 128000,
+      linearPCMBitDepth: 16,
+      linearPCMIsBigEndian: false,
+      linearPCMIsFloat: false,
+    },
+    web: {}, // Handled by web-app-integration guide
+  });
+
+  return recording;
+}
+```
+
+## Background noise on mobile
+
+Mobile users authenticate in highly variable environments — walking down the street, in a coffee shop, on public transport, in a car with road noise. This is the single biggest quality challenge for mobile voice authentication. You cannot control the environment, so you have to handle it in your application logic.
+
+The most important mitigation is **real-time audio level feedback during capture**. Show the user a volume indicator while they're recording. If the level is low, show a prompt: "Speak closer to your phone." If the level is high and variable — suggesting significant background noise — consider showing a warning: "We're picking up a lot of background noise. For best results, try in a quieter location." This doesn't prevent the user from proceeding, but it sets expectations and reduces frustration when verification fails.
+
+Voxmind's multi-stage noise pipeline handles compound noise well — the combination of spectral subtraction, phone-specific normalisations, and XLSR-300M's exposure to diverse audio conditions during training means it performs significantly better in noisy environments than traditional MFCC-based approaches. But no system performs as well in a construction site as in a quiet room. The `inconclusive` result is your signal that the audio quality was insufficient for a reliable determination — handle it as a prompt to retry rather than a failure.
+
+## Offline and low-connectivity considerations
+
+Mobile networks are unreliable. A verification call that takes 2 seconds on wifi might time out on a poor 3G connection, or the HTTP request might fail entirely mid-upload. Build retry logic into your mobile client for audio upload failures.
+
+A reasonable retry strategy: attempt the upload, wait up to 15 seconds for a response, and if it fails or times out, retry once with a fresh recording prompt rather than resending the original audio. Stale audio from a retry of a failed attempt is worse than a fresh sample from a new recording — the user may have moved to a different environment, and the act of asking them to try again often produces better audio anyway.
+
+If your app has offline or low-connectivity use cases, voice authentication will need a fallback path. Design your authentication flow with the assumption that any given verification attempt may fail to reach the server, and make the fallback path (PIN, biometric, OTP) easily accessible without treating it as an error state.
+
+## Platform-specific permission patterns
+
+Both iOS and Android require microphone permission to be requested at runtime, but the UX patterns differ between platforms.
+
+On iOS, you get exactly one chance to show the native permission prompt. If the user denies it, you cannot show it again — they have to manually re-enable microphone access in the Settings app. This means you should make your pre-permission explanation as clear and compelling as possible before triggering the system prompt. A brief in-app screen that explains why voice authentication needs the microphone, shown immediately before the system prompt, meaningfully increases acceptance rates. If the user has previously denied permission, detect this state using `AVAudioSession.recordPermission` and show a custom UI that deep-links them directly to your app's settings page.
+
+On Android, users can deny permission without permanently revoking it, and you can re-request after explaining why you need it (once — repeated requests are blocked after two denials). Use `shouldShowRequestPermissionRationale()` to determine whether to show an explanation before re-requesting.
+
+In both cases, the in-app explanation before the system prompt is the same message: voice authentication requires the microphone, it's only used for authentication, and no audio is stored beyond the processing required to create the voiceprint.
+
+## Passive voice authentication on mobile
+
+An advanced pattern worth considering for high-value mobile apps is **passive voice authentication** — running verification in the background during a voice call or voice input, without the user taking any explicit authentication action. This is distinct from active authentication where the user is explicitly prompted to speak.
+
+For example: a banking app that initiates a voice call for customer support could silently capture the first 15 seconds of conversation, run verification against the enrolled voiceprint, and either confirm identity silently (surfacing a "Verified" indicator to the support agent's screen) or flag for step-up authentication if the score is low. The user experiences a natural conversation, not an authentication checkpoint.
+
+This pattern requires careful consent design — users must be informed that passive authentication is running, typically disclosed in the app's terms and privacy notice and confirmed during the enrollment step. The technical implementation is identical to active verification; the difference is purely in the UX layer and consent model. Consult your legal team before deploying passive authentication in any jurisdiction with biometric data regulations.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Voxmind",
+  "name": "VoxMind",
   "logo": {
     "dark": "/logo/voxmind-white.png",
     "light": "/logo/voxmind-dark.png",
@@ -36,23 +36,7 @@
       "url": "api-reference"
     }
   ],
-  "anchors": [
-    {
-      "name": "Status",
-      "icon": "signal",
-      "url": "https://status.voxmind.ai"
-    },
-    {
-      "name": "Community",
-      "icon": "slack",
-      "url": "https://voxmind.ai/community"
-    },
-    {
-      "name": "Changelog",
-      "icon": "list",
-      "url": "https://voxmind.ai/changelog"
-    }
-  ],
+  "anchors": [],
   "navigation": [
     {
       "group": "Get Started",

@@ -1,18 +1,18 @@
 ---
 title: Web App Integration
-description: How to integrate VoxMind voice authentication into a browser-based application — covering microphone capture, audio quality, enrollment UX, and client-server architecture.
+description: How to integrate Voxmind voice authentication into a browser-based application — covering microphone capture, audio quality, enrollment UX, and client-server architecture.
 ---
 
 Web applications present a different set of integration constraints compared to telephony or mobile. The audio quality ceiling is higher — browsers can capture at 16kHz or above, well above the 8kHz telephony floor — but the diversity of hardware (cheap built-in laptop microphones versus high-quality headsets) and environments (open-plan offices, coffee shops, home setups) creates a wide quality range you need to handle gracefully. This guide covers everything from browser microphone capture to UX patterns and the client-server architecture that keeps your API token secure.
 
 ## The fundamental architecture rule: never expose your API token in the browser
 
-Before any implementation detail, one rule that is non-negotiable: your VoxMind API token must never appear in browser-side JavaScript. If a user opens DevTools and can find your bearer token in network requests, JavaScript bundles, or environment variables, anyone on the internet can impersonate your users using that token.
+Before any implementation detail, one rule that is non-negotiable: your Voxmind API token must never appear in browser-side JavaScript. If a user opens DevTools and can find your bearer token in network requests, JavaScript bundles, or environment variables, anyone on the internet can impersonate your users using that token.
 
-The correct architecture is for your backend to act as a proxy for all VoxMind API calls. Your browser-side code captures audio and sends it to your own server endpoint. Your server then forwards the audio to VoxMind's API, attaches the secret bearer token server-side, receives the result, and returns an appropriate response to the browser — without ever exposing the raw VoxMind response or your credentials to the client.
+The correct architecture is for your backend to act as a proxy for all Voxmind API calls. Your browser-side code captures audio and sends it to your own server endpoint. Your server then forwards the audio to Voxmind's API, attaches the secret bearer token server-side, receives the result, and returns an appropriate response to the browser — without ever exposing the raw Voxmind response or your credentials to the client.
 
 ```
-Browser                    Your Server              VoxMind API
+Browser                    Your Server              Voxmind API
    │                            │                        │
    │── POST /auth/enroll ──────>│                        │
    │   (audio blob + user info) │                        │
@@ -22,13 +22,13 @@ Browser                    Your Server              VoxMind API
    │<── { status: "enrolled" } ─│                        │
 ```
 
-This pattern also gives you a natural place to add your own business logic — rate limiting, fraud heuristics, audit logging, consent verification — before audio reaches VoxMind.
+This pattern also gives you a natural place to add your own business logic — rate limiting, fraud heuristics, audit logging, consent verification — before audio reaches Voxmind.
 
 ## Capturing audio in the browser
 
 The Web Audio API and `MediaRecorder` are the two primary browser tools for voice capture. `MediaRecorder` is the simpler path for most integration scenarios and is supported in all modern browsers.
 
-The key parameters to get right are the MIME type and the sample rate. VoxMind accepts PCM WAV and common compressed formats including MP3 and AAC, but for best results in a web context, capture as `audio/wav` or `audio/webm;codecs=opus`. Opus is a high-quality codec that works well at 16kHz and is natively supported by Chrome, Firefox, and Edge. Safari requires `audio/mp4` as a fallback.
+The key parameters to get right are the MIME type and the sample rate. Voxmind accepts PCM WAV and common compressed formats including MP3 and AAC, but for best results in a web context, capture as `audio/wav` or `audio/webm;codecs=opus`. Opus is a high-quality codec that works well at 16kHz and is natively supported by Chrome, Firefox, and Edge. Safari requires `audio/mp4` as a fallback.
 
 ```javascript
 // A clean, reusable audio capture utility for enrollment and verification
@@ -118,7 +118,7 @@ function createVolumeMonitor(stream, onVolumeChange) {
 
 ## Sending audio to your backend proxy
 
-Once recording is complete, send the audio blob to your backend via a standard multipart POST. Your backend then forwards it to VoxMind. The important thing is that this is a single-direction call from the browser's perspective — the user doesn't wait for the VoxMind webhook. You return a `202 Accepted` to the browser immediately, and your backend processes the webhook result asynchronously.
+Once recording is complete, send the audio blob to your backend via a standard multipart POST. Your backend then forwards it to Voxmind. The important thing is that this is a single-direction call from the browser's perspective — the user doesn't wait for the Voxmind webhook. You return a `202 Accepted` to the browser immediately, and your backend processes the webhook result asynchronously.
 
 ```javascript
 // Browser-side: send to your backend proxy
@@ -139,7 +139,7 @@ async function submitEnrollmentAudio(audioBlob, userId) {
 ```
 
 ```javascript
-// Server-side proxy (Node.js/Express): forward to VoxMind
+// Server-side proxy (Node.js/Express): forward to Voxmind
 app.post('/api/voice/enroll', authenticate, async (req, res) => {
   const { userId } = req.body;
   const audioFile = req.files.audio;
@@ -171,11 +171,11 @@ app.post('/api/voice/enroll', authenticate, async (req, res) => {
 
 ## Handling the webhook result in a web context
 
-VoxMind sends verification results to your webhook endpoint — a server-to-server call that happens asynchronously after the user's audio is processed. In a web application, this creates the challenge of getting that asynchronous result back to the browser in near real-time without the user having to refresh.
+Voxmind sends verification results to your webhook endpoint — a server-to-server call that happens asynchronously after the user's audio is processed. In a web application, this creates the challenge of getting that asynchronous result back to the browser in near real-time without the user having to refresh.
 
 The two standard approaches are WebSocket connections and server-sent events (SSE). WebSockets are bidirectional and appropriate if you need real-time updates for other features in your application. SSE is simpler to implement and perfectly adequate for this use case — the server only needs to push one event to the browser (the verification result), not maintain ongoing two-way communication.
 
-A practical pattern: when the user submits audio for verification, your server returns a `request_uuid`. The browser opens an SSE connection to a `/api/voice/verify/stream?request_uuid=xxx` endpoint. Your webhook handler receives the VoxMind result, looks up which SSE connection is waiting on that `request_uuid`, and pushes the result. The browser receives the event and updates the UI.
+A practical pattern: when the user submits audio for verification, your server returns a `request_uuid`. The browser opens an SSE connection to a `/api/voice/verify/stream?request_uuid=xxx` endpoint. Your webhook handler receives the Voxmind result, looks up which SSE connection is waiting on that `request_uuid`, and pushes the result. The browser receives the event and updates the UI.
 
 ```javascript
 // Browser: open SSE connection after submitting audio
@@ -216,7 +216,7 @@ Third, on HTTPS: `getUserMedia` only works on secure origins. In production this
 
 ## Audio quality checks before sending
 
-Rather than sending audio blindly and handling a poor-quality result from VoxMind, you can do a lightweight client-side quality check before submission. Two checks are worth implementing. The first is a minimum duration check — if the recorded audio is under 5 seconds, it's almost certainly too short for reliable verification, and you can prompt the user to try again before the round trip to your server. The second is a minimum volume check — if the average audio level from your `AnalyserNode` was below a threshold throughout the recording, the microphone may be muted or the user was speaking too quietly. Both checks can be done in milliseconds client-side and save you unnecessary API calls.
+Rather than sending audio blindly and handling a poor-quality result from Voxmind, you can do a lightweight client-side quality check before submission. Two checks are worth implementing. The first is a minimum duration check — if the recorded audio is under 5 seconds, it's almost certainly too short for reliable verification, and you can prompt the user to try again before the round trip to your server. The second is a minimum volume check — if the average audio level from your `AnalyserNode` was below a threshold throughout the recording, the microphone may be muted or the user was speaking too quietly. Both checks can be done in milliseconds client-side and save you unnecessary API calls.
 
 ```javascript
 function isAudioUsable(blob, averageVolume, durationSeconds) {

@@ -1,9 +1,9 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "VoxMind",
+  "name": "Voxmind",
   "logo": {
-    "dark": "/logo/voxmind-white.png",
-    "light": "/logo/voxmind-dark.png",
+    "dark": "/logo/voxmind-white.svg",
+    "light": "/logo/voxmind-dark.svg",
     "href": "https://voxmind.ai"
   },
   "favicon": "/favicon.png",

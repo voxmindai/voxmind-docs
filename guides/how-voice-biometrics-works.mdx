@@ -1,9 +1,9 @@
 ---
 title: How Voice Biometrics Works
-description: The science behind VoxMind's phoneme-level voice authentication and deepfake detection.
+description: The science behind Voxmind's phoneme-level voice authentication and deepfake detection.
 ---
 
-Understanding how VoxMind processes voice data helps you make better integration decisions — things like why audio quality matters, what "language-agnostic" actually means in practice, and why the system is resilient to the kinds of spoofing attacks that defeat legacy voice biometrics.
+Understanding how Voxmind processes voice data helps you make better integration decisions — things like why audio quality matters, what "language-agnostic" actually means in practice, and why the system is resilient to the kinds of spoofing attacks that defeat legacy voice biometrics.
 
 ## The core problem with traditional voice biometrics
 
@@ -11,19 +11,19 @@ Traditional voice biometric systems work by extracting a voiceprint from the ove
 
 The problem is that these acoustic characteristics are exactly what modern AI voice cloning models are trained to replicate. Given a 3-second sample of your voice, a well-resourced attacker can produce synthetic audio that defeats most legacy voice biometric systems, because the clone successfully mimics the surface-level acoustic signature the system was designed to measure.
 
-## What VoxMind measures instead
+## What Voxmind measures instead
 
-VoxMind's approach focuses on **phoneme-level analysis** — measuring characteristics that emerge from the physical anatomy of a speaker's vocal tract rather than the acoustic surface of what they're saying.
+Voxmind's approach focuses on **phoneme-level analysis** — measuring characteristics that emerge from the physical anatomy of a speaker's vocal tract rather than the acoustic surface of what they're saying.
 
 When you speak, your vocal tract — the shape and configuration of your mouth, tongue, jaw, teeth, and pharynx — acts as a resonant filter that shapes the sound produced by your vocal cords. These anatomical resonances create predictable frequency relationships between different phonemes (the distinct units of sound in speech). The ratio between the resonant frequencies of different phoneme pairs is a function of your physical anatomy, not your speech patterns.
 
 Critically, these ratios are **constants** — they don't change when you're sick, when you age slightly, when you're stressed, or when you're speaking a different language. And they're extremely difficult for a voice clone to replicate, because most voice cloning models are trained to reproduce the acoustic output of a voice, not the underlying biomechanical relationships that produce it.
 
-This is why VoxMind can perform authentication in any language without requiring re-enrollment: the phoneme-frequency relationships don't change with language. French spoken by a native Russian speaker still reveals the same anatomical constants as Russian, because those constants are in the speaker's vocal tract, not in the language they're speaking.
+This is why Voxmind can perform authentication in any language without requiring re-enrollment: the phoneme-frequency relationships don't change with language. French spoken by a native Russian speaker still reveals the same anatomical constants as Russian, because those constants are in the speaker's vocal tract, not in the language they're speaking.
 
 ## The processing pipeline
 
-When you submit a voice recording to VoxMind — whether for enrollment or verification — it goes through a five-stage pipeline.
+When you submit a voice recording to Voxmind — whether for enrollment or verification — it goes through a five-stage pipeline.
 
 The first stage is **preprocessing**: noise reduction, normalisation, and extraction of the clean speech signal from any background audio. The second stage is **phoneme extraction**: segmenting the audio into its constituent phoneme units using our XLSR-300M-based speech model, which was trained across 128 languages and handles language-agnostic phoneme segmentation. The third stage is **biomarker derivation**: computing the inter-phoneme frequency ratios for each detected phoneme pair across the recording. The fourth stage is **matching or enrollment**: either storing the derived biomarker profile (enrollment) or comparing it against the stored profile for the claimed identity (verification). The fifth stage is **liveness detection**: a parallel check using our AASIST graph attention network that analyses the statistical signatures of AI-generated audio. Synthetic voices, regardless of their acoustic quality, leave detectable artefacts in the frequency domain that this model is trained to identify.
 
@@ -35,7 +35,7 @@ A few practical implications worth understanding before you build.
 
 **Audio quality matters more than audio length.** A clean 3-second recording produces a better voiceprint than a noisy 10-second recording. The phoneme-frequency measurements are disrupted by persistent low-frequency noise in ways that simple acoustic features are not. If your use case involves phone calls, consider applying noise reduction at the capture stage.
 
-**The user doesn't need to say a specific phrase.** Because VoxMind is text-independent, your enrollment and verification UX can be conversational — "please state your name and confirm your date of birth" works just as well as "please say the magic phrase." This is significantly less friction than text-dependent systems that require users to memorise and repeat passphrases.
+**The user doesn't need to say a specific phrase.** Because Voxmind is text-independent, your enrollment and verification UX can be conversational — "please state your name and confirm your date of birth" works just as well as "please say the magic phrase." This is significantly less friction than text-dependent systems that require users to memorise and repeat passphrases.
 
 **Deepfake detection runs automatically.** You don't need to make a separate call to detect synthetic audio — it's included in every verification response. Your application logic should treat `deepfake_detected: true` as a definitive rejection regardless of the match score, and should log it as a potential fraud event.
 

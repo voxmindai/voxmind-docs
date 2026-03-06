@@ -1,13 +1,13 @@
 ---
 title: Authentication
-description: How VoxMind API tokens work, and how to manage them for production use.
+description: How Voxmind API tokens work, and how to manage them for production use.
 ---
 
-Every request to the VoxMind API must include a valid Bearer token in the `Authorization` header. This page explains the token lifecycle — from your first trial token through to production long-lived tokens — and how to manage them safely.
+Every request to the Voxmind API must include a valid Bearer token in the `Authorization` header. This page explains the token lifecycle — from your first trial token through to production long-lived tokens — and how to manage them safely.
 
 ## How authentication works
 
-VoxMind uses **long-lived Bearer tokens** for service-to-service authentication. This is intentional: when you're integrating voice biometrics into a contact centre platform or backend service, you don't want to deal with token refresh flows every hour. Your server gets a token, stores it securely, and uses it for every API call.
+Voxmind uses **long-lived Bearer tokens** for service-to-service authentication. This is intentional: when you're integrating voice biometrics into a contact centre platform or backend service, you don't want to deal with token refresh flows every hour. Your server gets a token, stores it securely, and uses it for every API call.
 
 ```http
 Authorization: Bearer YOUR_API_TOKEN
@@ -38,7 +38,7 @@ curl -X POST https://api.voxmind.ai/organisations/{org_id}/api-tokens \
   }'
 ```
 
-The response contains the full `bearer` token string — **this is the only time you will see the raw token value**. Store it immediately in a secrets manager (AWS Secrets Manager, HashiCorp Vault, or at minimum an environment variable in your deployment configuration). VoxMind only stores a hashed version and cannot retrieve it for you.
+The response contains the full `bearer` token string — **this is the only time you will see the raw token value**. Store it immediately in a secrets manager (AWS Secrets Manager, HashiCorp Vault, or at minimum an environment variable in your deployment configuration). Voxmind only stores a hashed version and cannot retrieve it for you.
 
 ```json
 {
@@ -54,7 +54,7 @@ The response contains the full `bearer` token string — **this is the only time
 
 ## Token expiry strategy
 
-By default, tokens issued without an `expires_at` field **do not expire**. This is convenient but creates risk if a token is ever exposed. VoxMind recommends a rotation strategy based on your security posture.
+By default, tokens issued without an `expires_at` field **do not expire**. This is convenient but creates risk if a token is ever exposed. Voxmind recommends a rotation strategy based on your security posture.
 
 For most integrations, rotating tokens every 90 days strikes the right balance. The rotation process is: issue a new token, update your deployment configuration, verify the new token works correctly, then delete the old one. There's no downtime because both tokens are valid simultaneously during the transition.
 
@@ -98,9 +98,9 @@ curl -X DELETE https://api.voxmind.ai/organisations/{org_id}/api-tokens/{token_i
 
 ## Security best practices
 
-Never hardcode tokens in source code or commit them to version control. Use environment variables in development and a secrets manager in production. If you're deploying to AWS (as VoxMind recommends), AWS Secrets Manager with automatic rotation hooks is the cleanest solution and costs pennies per secret per month.
+Never hardcode tokens in source code or commit them to version control. Use environment variables in development and a secrets manager in production. If you're deploying to AWS (as Voxmind recommends), AWS Secrets Manager with automatic rotation hooks is the cleanest solution and costs pennies per secret per month.
 
-One token per service is a good discipline. If you're running multiple servers or microservices that call the VoxMind API, give each one its own token with a descriptive name. That way, if one service is compromised, you can revoke its token without affecting others.
+One token per service is a good discipline. If you're running multiple servers or microservices that call the Voxmind API, give each one its own token with a descriptive name. That way, if one service is compromised, you can revoke its token without affecting others.
 
 ## Error responses
 

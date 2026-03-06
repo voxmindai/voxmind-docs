@@ -1,6 +1,6 @@
 ---
 title: Mobile App Integration
-description: How to integrate VoxMind voice authentication into iOS, Android, and React Native applications — covering microphone capture, background noise handling, security considerations, and UX patterns for mobile-specific contexts.
+description: How to integrate Voxmind voice authentication into iOS, Android, and React Native applications — covering microphone capture, background noise handling, security considerations, and UX patterns for mobile-specific contexts.
 ---
 
 Mobile is an ideal context for voice biometrics — users are already accustomed to biometric authentication on their phones (Face ID, Touch ID, fingerprint), the microphone hardware is generally high quality, and voice authentication complements rather than competes with the existing biometric stack. For use cases where a user can't look at a screen or use their hands, voice becomes the only viable authentication mechanism.
@@ -9,17 +9,17 @@ This guide covers the mobile-specific considerations that differ meaningfully fr
 
 ## The mobile security architecture
 
-The same rule that applies to web integrations applies here: your VoxMind API token must never be embedded in your app bundle. APK and IPA files can be decompiled. Strings embedded in compiled code, including those stored as environment variables or constants, are recoverable by a determined attacker. If your token appears in the app, it is effectively public.
+The same rule that applies to web integrations applies here: your Voxmind API token must never be embedded in your app bundle. APK and IPA files can be decompiled. Strings embedded in compiled code, including those stored as environment variables or constants, are recoverable by a determined attacker. If your token appears in the app, it is effectively public.
 
-The correct architecture is identical to the web pattern — your app sends audio to your own backend, your backend proxies the call to VoxMind with the bearer token attached server-side. The app never touches the VoxMind API directly.
+The correct architecture is identical to the web pattern — your app sends audio to your own backend, your backend proxies the call to Voxmind with the bearer token attached server-side. The app never touches the Voxmind API directly.
 
-For the app-to-backend leg, use your normal authenticated API calls with your own session token or JWT. This means the chain of trust is: the user authenticates to your app normally (via whatever method you use for non-voice flows), your app receives a session token, and that session token is what authorises the voice enrollment or verification call to your backend. VoxMind then becomes an additional authentication layer on top of your existing auth system, not a replacement for it.
+For the app-to-backend leg, use your normal authenticated API calls with your own session token or JWT. This means the chain of trust is: the user authenticates to your app normally (via whatever method you use for non-voice flows), your app receives a session token, and that session token is what authorises the voice enrollment or verification call to your backend. Voxmind then becomes an additional authentication layer on top of your existing auth system, not a replacement for it.
 
 ## iOS audio capture
 
 On iOS, the `AVAudioEngine` and `AVAudioRecorder` APIs handle microphone input. For voice biometrics, `AVAudioEngine` gives you more control over the audio pipeline and is the preferred approach for production integrations.
 
-The key iOS-specific settings are the audio session category and the sample rate. You want `AVAudioSessionCategoryRecord` or `AVAudioSessionCategoryPlayAndRecord` with `AVAudioSessionModeVoiceChat` — this mode tells iOS to apply voice-optimised signal processing, including acoustic echo cancellation and noise suppression that is tuned for voice rather than music. The sample rate should be 16kHz for voice biometric capture. iOS natively supports this rate and it gives VoxMind the frequency resolution it needs for reliable phoneme analysis above the telephony-grade 8kHz floor.
+The key iOS-specific settings are the audio session category and the sample rate. You want `AVAudioSessionCategoryRecord` or `AVAudioSessionCategoryPlayAndRecord` with `AVAudioSessionModeVoiceChat` — this mode tells iOS to apply voice-optimised signal processing, including acoustic echo cancellation and noise suppression that is tuned for voice rather than music. The sample rate should be 16kHz for voice biometric capture. iOS natively supports this rate and it gives Voxmind the frequency resolution it needs for reliable phoneme analysis above the telephony-grade 8kHz floor.
 
 ```swift
 import AVFoundation
@@ -82,9 +82,9 @@ class VoxMindRecorder {
 
 ## Android audio capture
 
-On Android, the `AudioRecord` API gives you low-level PCM access, or you can use `MediaRecorder` for a simpler integration that outputs directly to a file in a compressed format. For voice biometrics, `AudioRecord` with PCM capture is preferred because it gives you control over the audio pipeline and avoids codec-introduced artefacts before the audio reaches VoxMind.
+On Android, the `AudioRecord` API gives you low-level PCM access, or you can use `MediaRecorder` for a simpler integration that outputs directly to a file in a compressed format. For voice biometrics, `AudioRecord` with PCM capture is preferred because it gives you control over the audio pipeline and avoids codec-introduced artefacts before the audio reaches Voxmind.
 
-The critical Android-specific parameter is the `audioSource`. Use `MediaRecorder.AudioSource.VOICE_RECOGNITION` rather than the default `MIC` source. The `VOICE_RECOGNITION` source signals to Android's audio subsystem that this audio is destined for speech processing — on most devices this disables noise suppression and automatic gain control at the hardware level, which sounds counterintuitive but is correct for voice biometrics. You want the raw voice signal, not a pre-processed one, so that VoxMind's own processing can operate on clean input.
+The critical Android-specific parameter is the `audioSource`. Use `MediaRecorder.AudioSource.VOICE_RECOGNITION` rather than the default `MIC` source. The `VOICE_RECOGNITION` source signals to Android's audio subsystem that this audio is destined for speech processing — on most devices this disables noise suppression and automatic gain control at the hardware level, which sounds counterintuitive but is correct for voice biometrics. You want the raw voice signal, not a pre-processed one, so that Voxmind's own processing can operate on clean input.
 
 ```kotlin
 import android.media.AudioFormat
@@ -186,7 +186,7 @@ Mobile users authenticate in highly variable environments — walking down the s
 
 The most important mitigation is **real-time audio level feedback during capture**. Show the user a volume indicator while they're recording. If the level is low, show a prompt: "Speak closer to your phone." If the level is high and variable — suggesting significant background noise — consider showing a warning: "We're picking up a lot of background noise. For best results, try in a quieter location." This doesn't prevent the user from proceeding, but it sets expectations and reduces frustration when verification fails.
 
-VoxMind's multi-stage noise pipeline handles compound noise well — the combination of spectral subtraction, phone-specific normalisations, and XLSR-300M's exposure to diverse audio conditions during training means it performs significantly better in noisy environments than traditional MFCC-based approaches. But no system performs as well in a construction site as in a quiet room. The `inconclusive` result is your signal that the audio quality was insufficient for a reliable determination — handle it as a prompt to retry rather than a failure.
+Voxmind's multi-stage noise pipeline handles compound noise well — the combination of spectral subtraction, phone-specific normalisations, and XLSR-300M's exposure to diverse audio conditions during training means it performs significantly better in noisy environments than traditional MFCC-based approaches. But no system performs as well in a construction site as in a quiet room. The `inconclusive` result is your signal that the audio quality was insufficient for a reliable determination — handle it as a prompt to retry rather than a failure.
 
 ## Offline and low-connectivity considerations
 

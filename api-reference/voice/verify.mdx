@@ -7,7 +7,7 @@ authMethod: "bearer"
 
 ## Overview
 
-Verification compares a new voice recording against a user's stored voiceprint. VoxMind runs two parallel checks: a voiceprint match (returning a confidence score) and a deepfake detection check (identifying synthetic or replayed audio). Both results are included in the webhook payload.
+Verification compares a new voice recording against a user's stored voiceprint. Voxmind runs two parallel checks: a voiceprint match (returning a confidence score) and a deepfake detection check (identifying synthetic or replayed audio). Both results are included in the webhook payload.
 
 Like enrollment, verification is **asynchronous**. You receive a 202 Accepted immediately and your webhook receives the full result within 1–2 seconds on average.
 
@@ -32,11 +32,11 @@ Like enrollment, verification is **asynchronous**. You receive a 202 Accepted im
 </ParamField>
 
 <ParamField body="external_id" type="string">
-  Your user's identifier — must exactly match the `external_id` used during their enrollment. VoxMind uses this to retrieve the correct voiceprint for comparison.
+  Your user's identifier — must exactly match the `external_id` used during their enrollment. Voxmind uses this to retrieve the correct voiceprint for comparison.
 </ParamField>
 
 <ParamField body="language" type="string" default="en-UK">
-  The primary language of the verification audio. The user can speak a different language than they enrolled in — VoxMind handles this — but specifying the correct language improves accuracy.
+  The primary language of the verification audio. The user can speak a different language than they enrolled in — Voxmind handles this — but specifying the correct language improves accuracy.
 </ParamField>
 
 <ParamField body="device_fingerprint" type="string">

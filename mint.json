@@ -27,8 +27,8 @@
     }
   ],
   "topbarCtaButton": {
-    "name": "Get API Keys",
-    "url": "https://developers.voxmind.ai/signup"
+    "name": "Request Access",
+    "url": "https://voxmind.ai/contact"
   },
   "tabs": [
     {
